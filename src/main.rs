@@ -12,6 +12,7 @@ fn main() {
         Config::default().with_window(WindowBuilder::new().with_resizable(true)
         .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 800.0)))
     );
+    unsafe { gstreamer::deinit() };
 }
 
 // define a component that renders a div with the text "Hello, world!"
@@ -50,7 +51,7 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 max: 100,
                 value: *value.get() * 10.0,
                 class: "slider",
-                id: "myRange",
+                id: "{cx.props.acronym}",
                 onwheel: move |ev|{
                     value.set(round_dec(*value.get() - ev.data.delta().strip_units().y / 1500.0, 2));
                     println!("{}", *value.get());
@@ -59,7 +60,28 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                     value.set(ev.data.value.parse::<f64>().unwrap() / 10.0);
                 },
             }
-            h6 { "{value}" }
+            input { 
+                r#type: "number",
+                min: 0,
+                max: 10,
+                step: 0.1,
+                value: *value.get(),
+                id: "{cx.props.acronym}_number",
+                onwheel: move |ev|{
+                    value.set(round_dec(*value.get() - ev.data.delta().strip_units().y / 1500.0, 2));
+                    println!("{}", *value.get());
+                },
+                onchange: move |ev|{
+                    let temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
+                    if temp_val > 10.0 {
+                        value.set(10.0);
+                    } else if temp_val < 0.0 {
+                        value.set(0.0);
+                    } else {
+                        value.set(temp_val);
+                    }
+                },
+            }
         }
     })
 }

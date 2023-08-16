@@ -1,4 +1,4 @@
-use std::{path::PathBuf, fs::File, io::{Read, Write}};
+use std::{path::PathBuf, fs::File, io::Write};
 use anyhow::Result;
 use dioxus::prelude::Props;
 use libosu::prelude::{HitObjectKind};
