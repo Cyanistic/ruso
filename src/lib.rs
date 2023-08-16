@@ -30,6 +30,20 @@ impl MapOptions {
     }
 }
 
+#[derive(Debug, Props, PartialEq)]
+pub struct Settings{
+    pub slider_scroll: bool,
+    pub theme: Theme
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Theme{
+    Light,
+    Dark,
+    Osu,
+    Custom
+}
+
 impl Default for MapOptions{
     fn default() -> Self{
         MapOptions { 
@@ -96,14 +110,15 @@ fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
            &rate,
            &audio_path.extension().unwrap().to_str().unwrap()
         ),
-        _ => format!(
-           "filesrc location=\"{}\" ! decodebin ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! audioresample ! filesink location=\"{}({}).{}\"",
+        "wav" => format!(
+           "filesrc location=\"{}\" ! wavparse ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! wavenc ! filesink location=\"{}({}).{}\"",
            &audio_path.display(),
            &rate,
            &audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(),
            &rate,
            &audio_path.extension().unwrap().to_str().unwrap()
-        )
+        ),
+        e => return Err(anyhow::anyhow!("Unsupported file type: {}", e))
     };
     println!("{}", pipeline_description);
     

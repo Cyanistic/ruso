@@ -5,6 +5,7 @@ use dioxus_desktop::{Config, WindowBuilder};
 use ruso::*;
 use rfd::FileDialog;
 mod props;
+use crate::props::SliderProps;
 fn main() {
     // launch the dioxus app in a webview
     dioxus_desktop::launch_cfg(App,
@@ -29,15 +30,20 @@ fn App(cx: Scope) -> Element {
                 }),
                 "Choose path"
             }
-            GenericSlider {}
+            GenericSlider {
+                name: "Approach Rate",
+                acronym: "AR"
+            }
         }
     })
 }
 
-fn GenericSlider(cx: Scope) -> Element{
+fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
     let value = use_state(cx, || 5.0);
     cx.render(rsx! {
         div {
+            title: "{cx.props.name}",
+            h6 { "{cx.props.acronym}" }
             input {
                 r#type: "range",
                 min: 0,
