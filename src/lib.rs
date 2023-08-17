@@ -1,8 +1,33 @@
 use std::{path::PathBuf, fs::File, io::Write};
 use anyhow::Result;
-use libosu::prelude::{HitObjectKind};
+use libosu::{prelude::*, events::Event::Background};
 extern crate gstreamer as gst;
 use gst::{prelude::*, MessageType};
+mod structs;
+use crate::structs::*;
+
+pub fn read_map_metadata(map_path: &PathBuf) -> Result<MapOptions>{
+    let map = Beatmap::parse(File::open(map_path)?)?;
+    Ok(MapOptions{
+        approach_rate: map.difficulty.approach_rate as f64,
+        overall_difficulty: map.difficulty.overall_difficulty as f64,
+        circle_size: map.difficulty.circle_size as f64,
+        hp_drain: map.difficulty.hp_drain_rate as f64,
+        background: {
+            let mut bg = None;
+            for i in map.events{
+                if let Background(b) = i{
+                    bg = Some(PathBuf::from(b.filename));
+                    break;
+                }
+            }
+            bg
+        },
+        map_path: map_path.clone(),
+        songs_path: PathBuf::new(),
+        rate: 1.0
+    })
+}
 
 pub async fn generate_map(path: &PathBuf, rate: f64) -> Result<()>{
     let map_file = File::open(path)?;
@@ -66,7 +91,6 @@ fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
         ),
         e => return Err(anyhow::anyhow!("Unsupported file type: {}", e))
     };
-    println!("{}", pipeline_description);
     
     let pipeline = gst::parse_launch(&pipeline_description)?;
     pipeline.set_state(gst::State::Playing)?;

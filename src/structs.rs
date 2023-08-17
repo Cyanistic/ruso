@@ -7,6 +7,7 @@ pub struct MapOptions{
     pub circle_size: f64,
     pub hp_drain: f64,
     pub overall_difficulty: f64,
+    pub background: Option<PathBuf>,
     pub map_path: PathBuf,
     pub songs_path: PathBuf,
     pub rate: f64,
@@ -25,6 +26,7 @@ impl MapOptions{
             circle_size: 5.0,
             hp_drain: 5.0,
             overall_difficulty: 5.0,
+            background: None,
             map_path: PathBuf::new(), 
             songs_path: PathBuf::new(),
             rate: 1.0
