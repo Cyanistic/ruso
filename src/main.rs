@@ -5,7 +5,9 @@ use dioxus_desktop::{Config, WindowBuilder};
 use ruso::*;
 use rfd::FileDialog;
 mod props;
-use crate::props::SliderProps;
+mod structs;
+use crate::structs::*;
+use crate::props::*;
 fn main() {
     dioxus_desktop::launch_cfg(App,
         Config::default().with_window(WindowBuilder::new().with_resizable(true)
@@ -73,6 +75,21 @@ fn App(cx: Scope) -> Element {
                 }
                 RateSlider {
                     on_event: move |ev| map.write().rate = ev
+                }
+            }
+            div {
+                title: "Buttons",
+                button {
+                    onclick: move |_| {
+                        println!("{:?}", *map.read());
+                    },
+                    "Save"
+                }
+                button {
+                    onclick: move |_| {
+                        println!("{:?}", *map.read());
+                    },
+                    "Reset"
                 }
             }
         }
