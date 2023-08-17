@@ -71,9 +71,7 @@ fn App(cx: Scope) -> Element {
                     acronym: "OD",
                     on_event: move |ev| map.write().overall_difficulty = ev
                 }
-                GenericSlider {
-                    name: "Audio Rate",
-                    acronym: "Rate",
+                RateSlider {
                     on_event: move |ev| map.write().rate = ev
                 }
             }
@@ -146,37 +144,55 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
     })
 }
 
-fn RateSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
-    let value = use_state(cx, || 5.0);
+#[inline_props]
+fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
+    let map = use_shared_state::<MapOptions>(cx).unwrap();
+    let value = use_state(cx, || 1.0);
     cx.render(rsx! {
         div {
-            title: "{cx.props.name}",
-            h6 { "{cx.props.acronym}" }
+            title: "Rate",
+            "Rate"
             input {
                 r#type: "range",
                 min: 0,
-                max: 400,
-                value: *value.get() * 10.0,
+                max: 200,
+                value: *value.get() * 20.0,
                 class: "slider",
-                id: "{cx.props.acronym}",
+                id: "Rate",
                 onwheel: move |ev|{
-                    value.set(round_dec(*value.get() - ev.data.delta().strip_units().y / 1500.0, 2));
-                    println!("{}", *value.get());
+                    let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
+                    if temp_val > 10.0 {
+                        value.set(10.0);
+                    } else if temp_val < 0.0 {
+                        value.set(0.0);
+                    } else {
+                        value.set(temp_val);
+                    }
+                    cx.props.on_event.call(*value.get());
+                    println!("{:?}", *map.read());
                 },
-                onchange: move |ev|{
-                    value.set(ev.data.value.parse::<f64>().unwrap() / 10.0);
+                oninput: move |ev|{
+                    value.set(ev.data.value.parse::<f64>().unwrap() / 20.0);
+                    cx.props.on_event.call(*value.get());
                 },
             }
             input { 
                 r#type: "number",
                 min: 0,
                 max: 40,
-                step: 0.1,
+                step: 0.05,
                 value: *value.get(),
-                id: "{cx.props.acronym}_number",
+                id: "Rate_number",
                 onwheel: move |ev|{
-                    value.set(round_dec(*value.get() - ev.data.delta().strip_units().y / 1500.0, 2));
-                    println!("{}", *value.get());
+                    let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
+                    if temp_val > 40.0 {
+                        value.set(40.0);
+                    } else if temp_val < 0.0 {
+                        value.set(0.0);
+                    } else {
+                        value.set(temp_val);
+                    }
+                    cx.props.on_event.call(*value.get());
                 },
                 onchange: move |ev|{
                     let temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
@@ -187,6 +203,7 @@ fn RateSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                     } else {
                         value.set(temp_val);
                     }
+                    cx.props.on_event.call(*value.get());
                 },
             }
         }
