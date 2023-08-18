@@ -3,10 +3,9 @@ use anyhow::Result;
 use libosu::{prelude::*, events::Event::Background};
 extern crate gstreamer as gst;
 use gst::{prelude::*, MessageType};
-mod structs;
-use crate::structs::*;
-
-pub fn read_map_metadata(options: MapOptions, settings: Settings) -> Result<MapOptions>{
+pub mod structs;
+pub use structs::{MapOptions, Settings};
+pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
     let map = Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
     Ok(MapOptions{
         approach_rate: map.difficulty.approach_rate as f64,
@@ -26,7 +25,6 @@ pub fn read_map_metadata(options: MapOptions, settings: Settings) -> Result<MapO
         ..options
     })
 }
-
 
 pub async fn generate_map(path: &PathBuf, rate: f64) -> Result<()>{
     let map_file = File::open(path)?;
@@ -61,7 +59,6 @@ pub async fn generate_map(path: &PathBuf, rate: f64) -> Result<()>{
 }
 
 fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
-    println!("{:?}", audio_path);
     gst::init()?;
     let pipeline_description = match audio_path.extension().unwrap().to_str().unwrap().to_lowercase().as_str(){
         "mp3" => format!(

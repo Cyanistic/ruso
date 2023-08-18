@@ -2,12 +2,10 @@
 use std::path::PathBuf;
 use dioxus::{prelude::*, html::{native_bind::NativeFileEngine, button}};
 use dioxus_desktop::{Config, WindowBuilder};
-use ruso::*;
 use rfd::FileDialog;
 mod props;
-mod structs;
-use crate::structs::*;
-use crate::props::*;
+use props::*;
+use ruso::*;
 fn main() {
     dioxus_desktop::launch_cfg(App,
         Config::default().with_window(WindowBuilder::new().with_resizable(true)
@@ -17,9 +15,10 @@ fn main() {
 }
 
 fn App(cx: Scope) -> Element {
-    use_shared_state_provider(cx, || MapOptions::new());
+    use_shared_state_provider(cx, || ruso::structs::MapOptions::new());
     use_shared_state_provider(cx, || Settings::new());
     let map = use_shared_state::<MapOptions>(cx)?;
+    let settings = use_shared_state::<Settings>(cx)?;
     let songs_folder = use_state(cx, || PathBuf::new());
     let selected_map = use_state(cx, || PathBuf::new());
     cx.render(rsx! {
@@ -44,8 +43,11 @@ fn App(cx: Scope) -> Element {
                             .add_filter("osu! map", &["osu"])
                             .set_title("Choose a map to edit")
                             .set_directory(songs_folder.get());
-                        map.write().map_path= map_picker.clone().pick_file().unwrap();
+                        let prefix = map.read().songs_path.clone();
+                        map.write().map_path = map_picker.clone().pick_file().unwrap().strip_prefix(prefix).unwrap().to_path_buf();
                         selected_map.set(map.read().map_path.clone());
+                        let temp_map = map.read().clone();
+                        *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
                     },
                     "Choose path"
                     }

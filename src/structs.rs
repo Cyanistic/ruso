@@ -1,9 +1,7 @@
 use dioxus::prelude::*;
 use std::path::PathBuf;
-
-#[derive(Debug, Props, PartialEq)]
+#[derive(Clone, Debug, Props, PartialEq)]
 pub struct MapOptions{
-    // pub difficulty: HashMap<&'a str, f64>,
     pub approach_rate: f64,
     pub circle_size: f64,
     pub hp_drain: f64,
