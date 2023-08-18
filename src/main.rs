@@ -171,8 +171,8 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
             "Rate"
             input {
                 r#type: "range",
-                min: 0,
-                max: 200,
+                min: 1,
+                max: 60,
                 value: *value.get() * 20.0,
                 class: "slider",
                 id: "Rate",
@@ -180,8 +180,8 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                     let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
                     if temp_val > 10.0 {
                         value.set(10.0);
-                    } else if temp_val < 0.0 {
-                        value.set(0.0);
+                    } else if temp_val < 0.05 {
+                        value.set(0.05);
                     } else {
                         value.set(temp_val);
                     }
@@ -195,7 +195,7 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
             }
             input { 
                 r#type: "number",
-                min: 0,
+                min: 0.05,
                 max: 40,
                 step: 0.05,
                 value: *value.get(),
@@ -204,8 +204,8 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                     let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
                     if temp_val > 40.0 {
                         value.set(40.0);
-                    } else if temp_val < 0.0 {
-                        value.set(0.0);
+                    } else if temp_val < 0.05 {
+                        value.set(0.05);
                     } else {
                         value.set(temp_val);
                     }
@@ -215,8 +215,8 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                     let temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
                     if temp_val > 40.0 {
                         value.set(40.0);
-                    } else if temp_val < 0.0 {
-                        value.set(0.0);
+                    } else if temp_val < 0.5 {
+                        value.set(0.05);
                     } else {
                         value.set(temp_val);
                     }

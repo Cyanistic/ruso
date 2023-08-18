@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use std::path::PathBuf;
+
 #[derive(Debug, Props, PartialEq)]
 pub struct MapOptions{
     // pub difficulty: HashMap<&'a str, f64>,
@@ -44,14 +45,22 @@ impl Default for MapOptions{
 #[derive(Debug, Props, PartialEq)]
 pub struct Settings{
     pub slider_scroll: bool,
-    pub theme: Theme
+    pub theme: Theme,
+    pub ar_lock: bool,
+    pub cs_lock: bool,
+    pub hp_lock: bool,
+    pub od_lock: bool
 }
 
 impl Settings{
     pub fn new() -> Self{
         Settings{
             slider_scroll: false,
-            theme: Theme::Dark
+            theme: Theme::Dark,
+            ar_lock: false,
+            cs_lock: false,
+            hp_lock: false,
+            od_lock: false
         }
     }
 }

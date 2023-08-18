@@ -6,8 +6,8 @@ use gst::{prelude::*, MessageType};
 mod structs;
 use crate::structs::*;
 
-pub fn read_map_metadata(map_path: &PathBuf) -> Result<MapOptions>{
-    let map = Beatmap::parse(File::open(map_path)?)?;
+pub fn read_map_metadata(options: MapOptions, settings: Settings) -> Result<MapOptions>{
+    let map = Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
     Ok(MapOptions{
         approach_rate: map.difficulty.approach_rate as f64,
         overall_difficulty: map.difficulty.overall_difficulty as f64,
@@ -23,11 +23,10 @@ pub fn read_map_metadata(map_path: &PathBuf) -> Result<MapOptions>{
             }
             bg
         },
-        map_path: map_path.clone(),
-        songs_path: PathBuf::new(),
-        rate: 1.0
+        ..options
     })
 }
+
 
 pub async fn generate_map(path: &PathBuf, rate: f64) -> Result<()>{
     let map_file = File::open(path)?;
