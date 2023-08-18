@@ -77,4 +77,11 @@ pub enum Theme{
     Custom
 }
 
+#[derive(Debug, Clone)]
+pub enum Tab{
+    Auto,
+    Manual,
+    Settings
+}
+
 

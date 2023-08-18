@@ -6,6 +6,7 @@ use rfd::FileDialog;
 mod props;
 use props::*;
 use ruso::*;
+use crate::structs::Tab;
 fn main() {
     dioxus_desktop::launch_cfg(App,
         Config::default().with_window(WindowBuilder::new().with_resizable(true)
@@ -17,8 +18,11 @@ fn main() {
 fn App(cx: Scope) -> Element {
     use_shared_state_provider(cx, || ruso::structs::MapOptions::new());
     use_shared_state_provider(cx, || Settings::new());
+    use_shared_state_provider(cx, || Tab::Auto);
     let map = use_shared_state::<MapOptions>(cx)?;
+    let mut map_clone = MapOptions::new();
     let settings = use_shared_state::<Settings>(cx)?;
+    let tab = use_shared_state::<Tab>(cx)?;
     let songs_folder = use_state(cx, || PathBuf::new());
     let selected_map = use_state(cx, || PathBuf::new());
     cx.render(rsx! {
@@ -48,6 +52,7 @@ fn App(cx: Scope) -> Element {
                         selected_map.set(map.read().map_path.clone());
                         let temp_map = map.read().clone();
                         *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
+                        map_clone = map.read().clone();
                     },
                     "Choose path"
                     }
@@ -87,13 +92,12 @@ fn App(cx: Scope) -> Element {
                 title: "Buttons",
                 button {
                     onclick: move |_| {
-                        println!("{:?}", *map.read());
+                        generate_map(&map.read()).unwrap();
                     },
-                    "Save"
+                    "Create map"
                 }
                 button {
                     onclick: move |_| {
-                        println!("{:?}", *map.read());
                     },
                     "Reset"
                 }
@@ -103,7 +107,6 @@ fn App(cx: Scope) -> Element {
 }
 
 fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
-    let map = use_shared_state::<MapOptions>(cx).unwrap();
     cx.render(rsx! {
         div {
             title: "{cx.props.name}",

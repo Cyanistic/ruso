@@ -26,29 +26,36 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
     })
 }
 
-pub async fn generate_map(path: &PathBuf, rate: f64) -> Result<()>{
+pub fn generate_map(map: &MapOptions) -> Result<()>{
+    let path = &map.songs_path.join(&map.map_path);
+    let rate = map.rate;
     let map_file = File::open(path)?;
     let mut map_data = libosu::beatmap::Beatmap::parse(map_file)?;
     let audio_path = path.parent().unwrap().join(&map_data.audio_filename);
     map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
+    map_data.difficulty_name += format!("({}x)",rate).as_str(); 
+    map_data.difficulty.approach_rate = map.approach_rate as f32;
+    map_data.difficulty.circle_size = map.circle_size as f32;
+    map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
+    map_data.difficulty.overall_difficulty = map.overall_difficulty as f32;
     let audio_thread = std::thread::spawn(move || {
         generate_audio(&audio_path, rate)?;
         Ok::<(), anyhow::Error>(())
     });
     for h in &mut map_data.hit_objects{
-        h.start_time.0 = (rate / *h.start_time as f64).round() as i32;
+        h.start_time.0 = (*h.start_time as f64 / rate).round() as i32;
         match &mut h.kind {
             HitObjectKind::Hold(k) => {
-                k.end_time.0 = (rate / *k.end_time as f64).round() as i32;
+                k.end_time.0 = (*k.end_time as f64 / rate).round() as i32;
             },
             HitObjectKind::Spinner(k) => {
-                k.end_time.0 = (rate / *k.end_time as f64).round() as i32;
+                k.end_time.0 = (*k.end_time as f64 / rate).round() as i32;
             },
             _ => {}
         }
     }
     for t in &mut map_data.timing_points{
-        t.time.0 = (rate / t.time.0 as f64).round() as i32;
+        t.time.0 = (t.time.0 as f64 / rate).round() as i32;
     }
     let new_path = path.parent().unwrap().join(path.file_stem().unwrap());
     write!(File::create(format!("{}({}).osu", new_path.display(), rate))?,"{}", map_data)?;
@@ -107,13 +114,13 @@ pub fn round_dec(x: f64, decimals: u32) -> f64 {
 
 #[cfg(test)]
 mod test{
-    use super::*;
-    #[tokio::test]
-    async fn test1(){
-        generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/991895 Kondo Koji - Slider/Kondo Koji - Slider (NikoSek) [YaHoo!!].osu"), 1.9).await.unwrap();
-    }
-    #[tokio::test]
-    async fn test2(){
-        generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/1869337 Fellowship - Glory Days/Fellowship - Glory Days (EdgyKing) [Selfless Journey].osu"), 3.0).await.unwrap();
-    }
+    // use super::*;
+    // #[tokio::test]
+    // async fn test1(){
+    //     generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/991895 Kondo Koji - Slider/Kondo Koji - Slider (NikoSek) [YaHoo!!].osu"), 1.9).await.unwrap();
+    // }
+    // #[tokio::test]
+    // async fn test2(){
+    //     generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/1869337 Fellowship - Glory Days/Fellowship - Glory Days (EdgyKing) [Selfless Journey].osu"), 3.0).await.unwrap();
+    // }
 }
