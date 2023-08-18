@@ -58,22 +58,26 @@ fn App(cx: Scope) -> Element {
                 GenericSlider {
                     name: "HP Drain",
                     acronym: "HP",
+                    read: map.read().hp_drain,
                     on_event: move |ev| map.write().hp_drain = ev
                 }
                 GenericSlider {
                     name: "Circle Size",
                     acronym: "CS",
+                    read: map.read().circle_size,
                     on_event: move |ev| map.write().circle_size = ev
                 }
                 GenericSlider {
                     name: "Approach Rate",
                     acronym: "AR",
+                    read: map.read().approach_rate,
                     on_event: move |ev| map.write().approach_rate = ev
                 }
                 GenericSlider {
                     name: "Overall Difficulty",
                     acronym: "OD",
-                    on_event: move |ev| map.write().overall_difficulty = ev
+                    read: map.read().overall_difficulty,
+                    on_event: move |ev| map.write().overall_difficulty = ev,
                 }
                 RateSlider {
                     on_event: move |ev| map.write().rate = ev
@@ -100,7 +104,6 @@ fn App(cx: Scope) -> Element {
 
 fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
     let map = use_shared_state::<MapOptions>(cx).unwrap();
-    let value = use_state(cx, || 5.0);
     cx.render(rsx! {
         div {
             title: "{cx.props.name}",
@@ -109,24 +112,20 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 r#type: "range",
                 min: 0,
                 max: 100,
-                value: *value.get() * 10.0,
+                value: "{cx.props.read * 10.0}",
                 class: "slider",
                 id: "{cx.props.acronym}",
                 onwheel: move |ev|{
-                    let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 1500.0, 2);
+                    let mut temp_val = round_dec(cx.props.read - ev.data.delta().strip_units().y / 1500.0, 2);
                     if temp_val > 10.0 {
-                        value.set(10.0);
+                        temp_val  = 10.0;
                     } else if temp_val < 0.0 {
-                        value.set(0.0);
-                    } else {
-                        value.set(temp_val);
-                    }
-                    cx.props.on_event.call(*value.get());
-                    println!("{:?}", *map.read());
+                        temp_val = 0.0;
+                    }                    
+                    cx.props.on_event.call(temp_val);
                 },
                 oninput: move |ev|{
-                    value.set(ev.data.value.parse::<f64>().unwrap() / 10.0);
-                    cx.props.on_event.call(*value.get());
+                    cx.props.on_event.call(ev.data.value.parse::<f64>().unwrap() / 10.0);
                 },
             }
             input { 
@@ -134,29 +133,25 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 min: 0,
                 max: 10,
                 step: 0.1,
-                value: *value.get(),
+                value: "{cx.props.read}",
                 id: "{cx.props.acronym}_number",
                 onwheel: move |ev|{
-                    let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 1500.0, 2);
+                    let mut temp_val = round_dec(cx.props.read - ev.data.delta().strip_units().y / 1500.0, 2);
                     if temp_val > 10.0 {
-                        value.set(10.0);
+                        temp_val  = 10.0;
                     } else if temp_val < 0.0 {
-                        value.set(0.0);
-                    } else {
-                        value.set(temp_val);
-                    }
-                    cx.props.on_event.call(*value.get());
+                        temp_val = 0.0;
+                    }                    
+                    cx.props.on_event.call(temp_val);
                 },
                 onchange: move |ev|{
-                    let temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
+                    let mut temp_val = ev.data.value.parse::<f64>().unwrap_or(cx.props.read);
                     if temp_val > 10.0 {
-                        value.set(10.0);
+                        temp_val  = 10.0;
                     } else if temp_val < 0.0 {
-                        value.set(0.0);
-                    } else {
-                        value.set(temp_val);
-                    }
-                    cx.props.on_event.call(*value.get());
+                        temp_val = 0.0;
+                    }                    
+                    cx.props.on_event.call(temp_val);
                 },
             }
         }
@@ -188,7 +183,6 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                         value.set(temp_val);
                     }
                     cx.props.on_event.call(*value.get());
-                    println!("{:?}", *map.read());
                 },
                 oninput: move |ev|{
                     value.set(ev.data.value.parse::<f64>().unwrap() / 20.0);
