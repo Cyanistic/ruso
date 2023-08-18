@@ -16,7 +16,7 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
             let mut bg = None;
             for i in map.events{
                 if let Background(b) = i{
-                    bg = Some(PathBuf::from(b.filename));
+                    bg = Some(options.map_path.parent().unwrap().to_path_buf().join(PathBuf::from(b.filename)));
                     break;
                 }
             }
@@ -32,16 +32,19 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
     let map_file = File::open(path)?;
     let mut map_data = libosu::beatmap::Beatmap::parse(map_file)?;
     let audio_path = path.parent().unwrap().join(&map_data.audio_filename);
+
     map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
     map_data.difficulty_name += format!("({}x)",rate).as_str(); 
     map_data.difficulty.approach_rate = map.approach_rate as f32;
     map_data.difficulty.circle_size = map.circle_size as f32;
     map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
     map_data.difficulty.overall_difficulty = map.overall_difficulty as f32;
+
     let audio_thread = std::thread::spawn(move || {
         generate_audio(&audio_path, rate)?;
         Ok::<(), anyhow::Error>(())
     });
+
     for h in &mut map_data.hit_objects{
         h.start_time.0 = (*h.start_time as f64 / rate).round() as i32;
         match &mut h.kind {
@@ -54,19 +57,23 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
             _ => {}
         }
     }
+
     for t in &mut map_data.timing_points{
         t.time.0 = (t.time.0 as f64 / rate).round() as i32;
     }
+
     let new_path = path.parent().unwrap().join(path.file_stem().unwrap());
     write!(File::create(format!("{}({}).osu", new_path.display(), rate))?,"{}", map_data)?;
     if let Err(e) = audio_thread.join(){
         return Err(anyhow::anyhow!("Error generating audio file: {:?}", e))
     }
+
     Ok(())
 }
 
 fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
     gst::init()?;
+
     let pipeline_description = match audio_path.extension().unwrap().to_str().unwrap().to_lowercase().as_str(){
         "mp3" => format!(
            "filesrc location=\"{}\" ! mpegaudioparse ! mpg123audiodec ! decodebin ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! audioresample ! lamemp3enc target=quality quality=0 ! id3v2mux ! filesink location=\"{}({}).{}\"",

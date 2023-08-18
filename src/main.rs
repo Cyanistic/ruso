@@ -1,7 +1,8 @@
 #![allow(non_snake_case)]
 use std::path::PathBuf;
-use dioxus::{prelude::*, html::{native_bind::NativeFileEngine, button}};
+use dioxus::{prelude::*};
 use dioxus_desktop::{Config, WindowBuilder};
+use crate::dioxus_elements::img;
 use rfd::FileDialog;
 mod props;
 use props::*;
@@ -19,12 +20,16 @@ fn App(cx: Scope) -> Element {
     use_shared_state_provider(cx, || ruso::structs::MapOptions::new());
     use_shared_state_provider(cx, || Settings::new());
     use_shared_state_provider(cx, || Tab::Auto);
+
     let map = use_shared_state::<MapOptions>(cx)?;
     let mut map_clone = MapOptions::new();
     let settings = use_shared_state::<Settings>(cx)?;
     let tab = use_shared_state::<Tab>(cx)?;
+    let msg: &UseState<Option<String>> = use_state(cx, || None);
+
     let songs_folder = use_state(cx, || PathBuf::new());
     let selected_map = use_state(cx, || PathBuf::new());
+
     cx.render(rsx! {
         h2 { "Choose your osu Songs directory!" }
         div {            
@@ -55,6 +60,15 @@ fn App(cx: Scope) -> Element {
                         map_clone = map.read().clone();
                     },
                     "Choose path"
+                    }
+                }
+            }
+            if let Some(bg) = &map.read().background{
+                rsx!{
+                    img {
+                        src: "{songs_folder.join(bg).display()}",
+                        width: "100%",
+                        height: "100%"
                     }
                 }
             }
@@ -92,7 +106,14 @@ fn App(cx: Scope) -> Element {
                 title: "Buttons",
                 button {
                     onclick: move |_| {
-                        generate_map(&map.read()).unwrap();
+                        match generate_map(&map.read()){
+                            Ok(_) => {
+                                msg.set(Some("Map created successfully!".to_string()));
+                            },
+                            Err(e) => {
+                                msg.set(Some(format!("Error creating map: {}", e)));
+                            }
+                        };
                     },
                     "Create map"
                 }
@@ -101,6 +122,8 @@ fn App(cx: Scope) -> Element {
                     },
                     "Reset"
                 }
+            }
+            div {
             }
         }
     })
