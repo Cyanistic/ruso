@@ -71,6 +71,33 @@ impl Default for Settings{
     }
 }
 
+#[derive(Debug)]
+pub struct StatusMessage{
+    pub text: Option<String>,
+    pub status: Status
+}
+
+impl StatusMessage{
+    pub fn new() -> Self{
+        StatusMessage { 
+            text: None,
+            status: Status::Success
+        }
+    }
+}
+
+impl Default for StatusMessage{
+    fn default() -> Self{
+        Self::new()
+    }
+}
+
+#[derive(Debug)]
+pub enum Status{
+    Success,
+    Error
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Theme{
     Light,
