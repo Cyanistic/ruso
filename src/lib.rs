@@ -1,13 +1,14 @@
-use std::{path::PathBuf, fs::File, io::Write};
-use anyhow::Result;
+use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read}};
+use anyhow::{Result, anyhow};
 use libosu::{prelude::*, events::Event::Background};
 extern crate gstreamer as gst;
 use gst::{prelude::*, MessageType};
 pub mod structs;
 pub use structs::{MapOptions, Settings};
+
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
     let map = Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
-    Ok(MapOptions{
+    let mut new_options = MapOptions{
         approach_rate: map.difficulty.approach_rate as f64,
         overall_difficulty: map.difficulty.overall_difficulty as f64,
         circle_size: map.difficulty.circle_size as f64,
@@ -23,7 +24,20 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
             bg
         },
         ..options
-    })
+    };
+    if settings.ar_lock{
+        new_options.approach_rate = options.approach_rate;
+    }
+    if settings.cs_lock{
+        new_options.circle_size = options.circle_size;
+    }
+    if settings.hp_lock{
+        new_options.hp_drain = options.hp_drain;
+    }
+    if settings.od_lock{
+        new_options.overall_difficulty = options.overall_difficulty;
+    }
+    Ok(new_options)
 }
 
 pub fn generate_map(map: &MapOptions) -> Result<()>{
@@ -32,6 +46,17 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
     let map_file = File::open(path)?;
     let mut map_data = libosu::beatmap::Beatmap::parse(map_file)?;
     let audio_path = path.parent().unwrap().join(&map_data.audio_filename);
+    let cache_dir = match dirs::cache_dir(){
+        Some(k) => k,
+        None => return Err(anyhow::anyhow!("Couldn't find cache directory"))
+    }.join("ruso");
+    let mut cache_file = match OpenOptions::new().append(true).open(cache_dir.join("maps.txt")){
+        Ok(k) => k,
+        Err(e) => match e.kind(){
+                ErrorKind::NotFound => File::create(cache_dir.join("maps.txt"))?,
+                _ => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
+            }
+    };
 
     map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
     map_data.difficulty_name += format!("({}x)",rate).as_str(); 
@@ -39,9 +64,11 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
     map_data.difficulty.circle_size = map.circle_size as f32;
     map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
     map_data.difficulty.overall_difficulty = map.overall_difficulty as f32;
+    map_data.tags.push("ruso-map".to_string());
 
+    let audio_closure = audio_path.clone();
     let audio_thread = std::thread::spawn(move || {
-        generate_audio(&audio_path, rate)?;
+        generate_audio(&audio_closure, rate)?;
         Ok::<(), anyhow::Error>(())
     });
 
@@ -68,36 +95,34 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
         return Err(anyhow::anyhow!("Error generating audio file: {:?}", e))
     }
 
+    writeln!(cache_file, "{}({}).osu", new_path.display(), rate)?;
+    writeln!(cache_file, "{}({}).{}", audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap())?;
+
     Ok(())
 }
 
-fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
+fn generate_audio(audio_path: &Path, rate: f64) -> Result<PathBuf>{
     gst::init()?;
+    let final_path = audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).join(audio_path.extension().unwrap());
 
     let pipeline_description = match audio_path.extension().unwrap().to_str().unwrap().to_lowercase().as_str(){
         "mp3" => format!(
-           "filesrc location=\"{}\" ! mpegaudioparse ! mpg123audiodec ! decodebin ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! audioresample ! lamemp3enc target=quality quality=0 ! id3v2mux ! filesink location=\"{}({}).{}\"",
+           "filesrc location=\"{}\" ! mpegaudioparse ! mpg123audiodec ! decodebin ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! audioresample ! lamemp3enc target=quality quality=0 ! id3v2mux ! filesink location=\"{}\"",
            &audio_path.display(),
            &rate,
-           &audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(),
-           &rate,
-           &audio_path.extension().unwrap().to_str().unwrap()
+           &final_path.display()
         ),
         "ogg" => format!(
-           "filesrc location=\"{}\" ! oggdemux ! vorbisdec ! audioconvert ! speed speed={} ! vorbisenc ! oggmux ! filesink location=\"{}({}).{}\"",
+           "filesrc location=\"{}\" ! oggdemux ! vorbisdec ! audioconvert ! speed speed={} ! vorbisenc ! oggmux ! filesink location=\"{}\"",
            &audio_path.display(),
            &rate,
-           &audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(),
-           &rate,
-           &audio_path.extension().unwrap().to_str().unwrap()
+           &final_path.display()
         ),
         "wav" => format!(
-           "filesrc location=\"{}\" ! wavparse ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! wavenc ! filesink location=\"{}({}).{}\"",
+           "filesrc location=\"{}\" ! wavparse ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! wavenc ! filesink location=\"{}\"",
            &audio_path.display(),
            &rate,
-           &audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(),
-           &rate,
-           &audio_path.extension().unwrap().to_str().unwrap()
+           &final_path.display()
         ),
         e => return Err(anyhow::anyhow!("Unsupported file type: {}", e))
     };
@@ -111,6 +136,32 @@ fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
                 break;
             }
         }
+    Ok(final_path)
+}
+
+pub fn clean_maps() -> Result<()>{
+    let cache = match dirs::cache_dir(){
+        Some(k) => k,
+        None => return Err(anyhow::anyhow!("Couldn't find cache directory"))
+    }.join("ruso");
+    let mut cache_file = match File::open(cache.join("ruso-map").join("maps.txt")){
+        Ok(k) => k,
+        Err(e) => {
+            match e.kind(){
+                ErrorKind::NotFound => return Err(anyhow::anyhow!("No maps to clean")),
+                _ => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
+            };
+        }
+    };
+    let mut buf = String::new();
+    cache_file.read_to_string(&mut buf)?;
+    for line in buf.lines(){
+        let path = PathBuf::from(line);
+        if !path.exists(){
+            continue;
+        }
+        std::fs::remove_file(path)?;
+    }
     Ok(())
 }
 
