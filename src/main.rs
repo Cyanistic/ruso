@@ -75,28 +75,36 @@ fn App(cx: Scope) -> Element {
             div {
                 h2 { "Map Options" }
                 GenericSlider {
-                    name: "HP Drain",
-                    acronym: "HP",
-                    read: map.read().hp_drain,
-                    on_event: move |ev| map.write().hp_drain = ev
+                    name: "Approach Rate",
+                    acronym: "AR",
+                    read: map.read().approach_rate,
+                    locked: settings.read().ar_lock,
+                    on_event: move |ev| map.write().approach_rate = ev,
+                    on_lock: move |ev: bool| settings.write().ar_lock = !ev
                 }
                 GenericSlider {
                     name: "Circle Size",
                     acronym: "CS",
                     read: map.read().circle_size,
-                    on_event: move |ev| map.write().circle_size = ev
+                    locked: settings.read().cs_lock,
+                    on_event: move |ev| map.write().circle_size = ev,
+                    on_lock: move |ev: bool| settings.write().cs_lock = !ev
                 }
                 GenericSlider {
-                    name: "Approach Rate",
-                    acronym: "AR",
-                    read: map.read().approach_rate,
-                    on_event: move |ev| map.write().approach_rate = ev
+                    name: "HP Drain",
+                    acronym: "HP",
+                    read: map.read().hp_drain,
+                    locked: settings.read().hp_lock,
+                    on_event: move |ev| map.write().hp_drain = ev,
+                    on_lock: move |ev: bool| settings.write().hp_lock = !ev
                 }
                 GenericSlider {
                     name: "Overall Difficulty",
                     acronym: "OD",
                     read: map.read().overall_difficulty,
+                    locked: settings.read().od_lock,
                     on_event: move |ev| map.write().overall_difficulty = ev,
+                    on_lock: move |ev: bool| settings.write().od_lock = !ev
                 }
                 RateSlider {
                     on_event: move |ev| map.write().rate = ev
@@ -130,6 +138,7 @@ fn App(cx: Scope) -> Element {
 }
 
 fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
+    let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     cx.render(rsx! {
         div {
             title: "{cx.props.name}",
@@ -180,6 +189,30 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                     cx.props.on_event.call(temp_val);
                 },
             }
+            if cx.props.locked {
+                rsx!{
+                    img {
+                        src: "{root_dir.join(\"assets/locked-lock.png\").display()}",
+                        width: "32px",
+                        height: "32px",
+                        onclick: move |_| {
+                            cx.props.on_lock.call(cx.props.locked);
+                        },
+                    }
+                }
+            } else {
+                rsx!{
+                    img {
+                        src: "{root_dir.join(\"assets/unlocked-lock.png\").display()}",
+                        width: "32px",
+                        height: "32px",
+                        onclick: move |_| {
+                            cx.props.on_lock.call(cx.props.locked);
+                        },
+                    }
+                }
+            }
+        
         }
     })
 }
