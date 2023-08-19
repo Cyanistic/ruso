@@ -11,7 +11,7 @@ use futures_util::{SinkExt, Stream, StreamExt};
 use serde_json::{to_value, json, from_value, from_str};
 
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
-    let map = Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
+    let map = libosu::beatmap::Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
     let mut new_options = MapOptions{
         approach_rate: map.difficulty.approach_rate as f64,
         overall_difficulty: map.difficulty.overall_difficulty as f64,
@@ -105,29 +105,29 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
 
 fn generate_audio(audio_path: &Path, rate: f64) -> Result<()>{
     gst::init()?;
-    let final_path = audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).join(audio_path.extension().unwrap());
-
+    let final_path = format!("{}({}).{}",audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap());
     let pipeline_description = match audio_path.extension().unwrap().to_str().unwrap().to_lowercase().as_str(){
         "mp3" => format!(
            "filesrc location=\"{}\" ! mpegaudioparse ! mpg123audiodec ! decodebin ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! audioresample ! lamemp3enc target=quality quality=0 ! id3v2mux ! filesink location=\"{}\"",
            &audio_path.display(),
            &rate,
-           &final_path.display()
+           &final_path
         ),
         "ogg" => format!(
            "filesrc location=\"{}\" ! oggdemux ! vorbisdec ! audioconvert ! speed speed={} ! vorbisenc ! oggmux ! filesink location=\"{}\"",
            &audio_path.display(),
            &rate,
-           &final_path.display()
+           &final_path
         ),
         "wav" => format!(
            "filesrc location=\"{}\" ! wavparse ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! wavenc ! filesink location=\"{}\"",
            &audio_path.display(),
            &rate,
-           &final_path.display()
+           &final_path
         ),
         e => return Err(anyhow::anyhow!("Unsupported file type: {}", e))
     };
+    println!("{}", &pipeline_description);
     
     let pipeline = gst::parse_launch(&pipeline_description)?;
     pipeline.set_state(gst::State::Playing)?;
@@ -204,5 +204,18 @@ mod test{
     #[tokio::test]
     async fn gosu_test(){
         gosu_websocket_listen(&Settings::new()).await.unwrap();
+    }
+    #[tokio::test]
+    async fn metadata_test(){
+        read_map_metadata(MapOptions
+            { approach_rate: 5.0,
+            circle_size: 5.0,
+            hp_drain: 5.0,
+            overall_difficulty: 5.0,
+            background: None,
+            map_path: PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs"),
+            songs_path: PathBuf::from("1395853 Camellia FeatNanahira - Mathematics MA+MA = Magic!/Camellia Feat.Nanahira - Mathematics MA+MA = Magic! (Forthnos) [EXHAUST](1.3).osu"),
+            rate: 1.3
+        }, &Settings::new()).unwrap();
     }
 }

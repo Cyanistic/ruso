@@ -348,8 +348,9 @@ fn AutoTab(cx: Scope) -> Element{
     let gosu_reader: &Coroutine<()> = use_coroutine(cx, |rx: UnboundedReceiver<_>| { 
         to_owned![map, settings, msg];
         async move{
-        loop {
-            let (mut socket, _) = match connect_async(&settings.read().websocket_url).await{
+        let settings_url = settings.read().websocket_url.clone();
+        'outer: loop {
+            let (mut socket, _) = match connect_async(&settings_url).await{
                 Ok(k) => k,
                 Err(e) => {
                     msg.write().text = Some(format!("Error connecting to websocket: {}", e));
@@ -360,19 +361,20 @@ fn AutoTab(cx: Scope) -> Element{
             };
             let (_, read) = socket.split();
             let recent_state: Arc<Mutex<serde_json::Value>> = Arc::new(Mutex::new(serde_json::Value::Null));
-            println!("{}", recent_state.lock().await["menu"]["bm"]["path"]["file"]);
             let read_future = read.for_each(|message| async{
                 if let Ok(message) = message{
                     let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
                     let mut state = recent_state.lock().await;
                     if (*state)["menu"]["bm"]["path"]["file"] != data["menu"]["bm"]["path"]["file"]{
-                        // tokio::io::stdout().write_all(data.to_string().as_bytes()).await.unwrap();
                         map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
                         map.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
                         let temp_map = map.read().clone();
                         *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
                         *state = data;
                     }
+                }else{
+                    println!("Error reading websocket message: {:?}", message);
+                    return
                 }
             });
             read_future.await;
