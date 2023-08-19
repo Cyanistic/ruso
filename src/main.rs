@@ -53,118 +53,7 @@ fn App(cx: Scope) -> Element {
             }
             match *tab.read() {
                 Tab::Auto => rsx!{ AutoTab{} },
-                Tab::Manual => rsx!{ h2 { "Choose your osu Songs directory!" }
-            div {            
-                h4 { "Current directory:" "{map.read().songs_path.display()}" }
-                button {
-                    onclick: move |_| {
-                        let dir_picker = FileDialog::new()
-                            .set_title("Choose your osu! Songs directory");
-                        map.write().songs_path = dir_picker.pick_folder().unwrap();
-                        songs_folder.set(map.read().songs_path.clone());
-                    },
-                    "Choose path"
-                }
-                if *map.read().songs_path != PathBuf::new(){
-                   rsx!{
-                        h4 { "Selected map: " "{map.read().map_path.display()}" }
-                        button {
-                        onclick: move |_| {
-                            let map_picker = FileDialog::new()
-                                .add_filter("osu! map", &["osu"])
-                                .set_title("Choose a map to edit")
-                                .set_directory(songs_folder.get());
-                            let prefix = map.read().songs_path.clone();
-                            map.write().map_path = map_picker.clone().pick_file().unwrap().strip_prefix(prefix).unwrap().to_path_buf();
-                            selected_map.set(map.read().map_path.clone());
-                            let temp_map = map.read().clone();
-                            *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
-                            map_clone = map.read().clone();
-                        },
-                        "Choose path"
-                        }
-                    }
-                }
-                if let Some(bg) = &map.read().background{
-                    rsx!{
-                        img {
-                            src: "{map.read().songs_path.join(bg).display()}",
-                            width: "100%",
-                            height: "100%"
-                        }
-                    }
-                }
-                div {
-                    h2 { "Map Options" }
-                    GenericSlider {
-                        name: "Approach Rate",
-                        acronym: "AR",
-                        read: map.read().approach_rate,
-                        locked: settings.read().ar_lock,
-                        on_event: move |ev| map.write().approach_rate = ev,
-                        on_lock: move |ev: bool| settings.write().ar_lock = !ev
-                    }
-                    GenericSlider {
-                        name: "Circle Size",
-                        acronym: "CS",
-                        read: map.read().circle_size,
-                        locked: settings.read().cs_lock,
-                        on_event: move |ev| map.write().circle_size = ev,
-                        on_lock: move |ev: bool| settings.write().cs_lock = !ev
-                    }
-                    GenericSlider {
-                        name: "HP Drain",
-                        acronym: "HP",
-                        read: map.read().hp_drain,
-                        locked: settings.read().hp_lock,
-                        on_event: move |ev| map.write().hp_drain = ev,
-                        on_lock: move |ev: bool| settings.write().hp_lock = !ev
-                    }
-                    GenericSlider {
-                        name: "Overall Difficulty",
-                        acronym: "OD",
-                        read: map.read().overall_difficulty,
-                        locked: settings.read().od_lock,
-                        on_event: move |ev| map.write().overall_difficulty = ev,
-                        on_lock: move |ev: bool| settings.write().od_lock = !ev
-                    }
-                    RateSlider {
-                        on_event: move |ev| map.write().rate = ev
-                    }
-                }
-                div {
-                    title: "Buttons",
-                    button {
-                        onclick: move |_| {
-                            match generate_map(&map.read()){
-                                Ok(_) => {
-                                    msg.write().text = Some("Map created successfully!".to_string());
-                                    msg.write().status = Status::Success;
-                                },
-                                Err(e) => {
-                                    msg.write().text = Some(format!("Error creating map: {}", e));
-                                    msg.write().status = Status::Error;
-                                }
-                            };
-                        },
-                        "Create map"
-                    }
-                    button {
-                        onclick: move |_| {
-                        },
-                        "Reset"
-                    }
-                }
-                div {
-                    title: "Messages",
-                    p {
-                        if let Some(msg) = &msg.read().text{
-                            rsx! {"{msg}"}
-                        }
-                    }
-                }
-            }
-        },
+                Tab::Manual => rsx!{ ManualTab{} },
         Tab::Settings => rsx! { SettingsTab{} },
         }
     })
@@ -382,5 +271,132 @@ fn AutoTab(cx: Scope) -> Element{
     }});
     cx.render(rsx!{
         h1 { "Auto" }
+        MapOptionsComponent{}
+    })
+}
+
+fn ManualTab(cx: Scope) -> Element{
+    let map = use_shared_state::<MapOptions>(cx)?;
+    let settings = use_shared_state::<Settings>(cx)?;
+    let msg = use_shared_state::<StatusMessage>(cx)?;
+    cx.render(rsx!{
+            h2 { "Choose your osu Songs directory!" }
+            div {            
+                h4 { "Current directory:" "{map.read().songs_path.display()}" }
+                button {
+                    onclick: move |_| {
+                        let dir_picker = FileDialog::new()
+                            .set_title("Choose your osu! Songs directory");
+                        map.write().songs_path = dir_picker.pick_folder().unwrap();
+                    },
+                    "Choose path"
+                }
+                if *map.read().songs_path != PathBuf::new(){
+                   rsx!{
+                        h4 { "Selected map: " "{map.read().map_path.display()}" }
+                        button {
+                        onclick: move |_| {
+                            let songs_folder = map.read().songs_path.clone();
+                            let map_picker = FileDialog::new()
+                                .add_filter("osu! map", &["osu"])
+                                .set_title("Choose a map to edit")
+                                .set_directory(songs_folder);
+                            let prefix = map.read().songs_path.clone();
+                            map.write().map_path = map_picker.clone().pick_file().unwrap().strip_prefix(prefix).unwrap().to_path_buf();
+                            let temp_map = map.read().clone();
+                            *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
+                        },
+                        "Choose path"
+                        }
+                    }
+                }
+                MapOptionsComponent{}
+            }
+    })
+}
+
+fn MapOptionsComponent(cx: Scope) -> Element{
+    let map = use_shared_state::<MapOptions>(cx)?;
+    let settings = use_shared_state::<Settings>(cx)?;
+    let msg = use_shared_state::<StatusMessage>(cx)?;
+    cx.render(rsx!{
+                if let Some(bg) = &map.read().background{
+                    rsx!{
+                        img {
+                            src: "{map.read().songs_path.join(bg).display()}",
+                            width: "100%",
+                            height: "100%"
+                        }
+                    }
+                }
+                div{
+                    h2 { "Map Options" }
+                    GenericSlider {
+                        name: "Approach Rate",
+                        acronym: "AR",
+                        read: map.read().approach_rate,
+                        locked: settings.read().ar_lock,
+                        on_event: move |ev| map.write().approach_rate = ev,
+                        on_lock: move |ev: bool| settings.write().ar_lock = !ev
+                    }
+                    GenericSlider {
+                        name: "Circle Size",
+                        acronym: "CS",
+                        read: map.read().circle_size,
+                        locked: settings.read().cs_lock,
+                        on_event: move |ev| map.write().circle_size = ev,
+                        on_lock: move |ev: bool| settings.write().cs_lock = !ev
+                    }
+                    GenericSlider {
+                        name: "HP Drain",
+                        acronym: "HP",
+                        read: map.read().hp_drain,
+                        locked: settings.read().hp_lock,
+                        on_event: move |ev| map.write().hp_drain = ev,
+                        on_lock: move |ev: bool| settings.write().hp_lock = !ev
+                    }
+                    GenericSlider {
+                        name: "Overall Difficulty",
+                        acronym: "OD",
+                        read: map.read().overall_difficulty,
+                        locked: settings.read().od_lock,
+                        on_event: move |ev| map.write().overall_difficulty = ev,
+                        on_lock: move |ev: bool| settings.write().od_lock = !ev
+                    }
+                    RateSlider {
+                        on_event: move |ev| map.write().rate = ev
+                    }
+                }
+                div {
+                    title: "Buttons",
+                    button {
+                        onclick: move |_| {
+                            match generate_map(&map.read()){
+                                Ok(_) => {
+                                    msg.write().text = Some("Map created successfully!".to_string());
+                                    msg.write().status = Status::Success;
+                                },
+                                Err(e) => {
+                                    msg.write().text = Some(format!("Error creating map: {}", e));
+                                    msg.write().status = Status::Error;
+                                }
+                            };
+                        },
+                        "Create map"
+                    }
+                    button {
+                        onclick: move |_| {
+                        },
+                        "Reset"
+                    }
+                }
+                div {
+                    title: "Messages",
+                    p {
+                        if let Some(msg) = &msg.read().text{
+                            rsx! {"{msg}"}
+                        }
+                    }
+                }
     })
 }
