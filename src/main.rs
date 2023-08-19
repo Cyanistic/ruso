@@ -55,7 +55,7 @@ fn App(cx: Scope) -> Element {
                 Tab::Auto => rsx!{ AutoTab{} },
                 Tab::Manual => rsx!{ h2 { "Choose your osu Songs directory!" }
             div {            
-                h4 { "Current directory: {songs_folder.display()}" }
+                h4 { "Current directory:" "{map.read().songs_path.display()}" }
                 button {
                     onclick: move |_| {
                         let dir_picker = FileDialog::new()
@@ -65,9 +65,9 @@ fn App(cx: Scope) -> Element {
                     },
                     "Choose path"
                 }
-                if *songs_folder.get() != PathBuf::new(){
+                if *map.read().songs_path != PathBuf::new(){
                    rsx!{
-                        h4 { "Selected map: {selected_map.display()}" }
+                        h4 { "Selected map: " "{map.read().map_path.display()}" }
                         button {
                         onclick: move |_| {
                             let map_picker = FileDialog::new()
@@ -88,7 +88,7 @@ fn App(cx: Scope) -> Element {
                 if let Some(bg) = &map.read().background{
                     rsx!{
                         img {
-                            src: "{songs_folder.join(bg).display()}",
+                            src: "{map.read().songs_path.join(bg).display()}",
                             width: "100%",
                             height: "100%"
                         }
@@ -349,12 +349,12 @@ fn AutoTab(cx: Scope) -> Element{
         to_owned![map, settings, msg];
         async move{
         loop {
-            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
             let (mut socket, _) = match connect_async(&settings.read().websocket_url).await{
                 Ok(k) => k,
                 Err(e) => {
                     msg.write().text = Some(format!("Error connecting to websocket: {}", e));
                     msg.write().status = Status::Error;
+                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                     continue;
                 }
             };
@@ -367,8 +367,10 @@ fn AutoTab(cx: Scope) -> Element{
                     let mut state = recent_state.lock().await;
                     if (*state)["menu"]["bm"]["path"]["file"] != data["menu"]["bm"]["path"]["file"]{
                         // tokio::io::stdout().write_all(data.to_string().as_bytes()).await.unwrap();
-                        map.write().songs_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].to_string());
-                        *map.write() = read_map_metadata(map.read().clone(), &settings.read()).unwrap();
+                        map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
+                        map.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
+                        let temp_map = map.read().clone();
+                        *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
                         *state = data;
                     }
                 }
