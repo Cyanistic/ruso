@@ -132,6 +132,12 @@ fn App(cx: Scope) -> Element {
                 }
             }
             div {
+                title: "Messages",
+                p {
+                    if let Some(msg) = &*msg.get(){
+                        rsx! {"{msg}"}
+                    }
+                }
             }
         }
     })
@@ -219,7 +225,6 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
 
 #[inline_props]
 fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
-    let map = use_shared_state::<MapOptions>(cx).unwrap();
     let value = use_state(cx, || 1.0);
     cx.render(rsx! {
         div {
@@ -233,20 +238,19 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                 class: "slider",
                 id: "Rate",
                 onwheel: move |ev|{
-                    let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
+                    let mut temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
                     if temp_val > 10.0 {
-                        value.set(10.0);
+                        temp_val = 10.0;
                     } else if temp_val < 0.05 {
-                        value.set(0.05);
-                    } else {
-                        value.set(temp_val);
+                        temp_val = 0.05;
                     }
-                    cx.props.on_event.call(*value.get());
+                    value.set(temp_val);
+                    cx.props.on_event.call(temp_val);
                 },
                 oninput: move |ev|{
                     value.set(ev.data.value.parse::<f64>().unwrap() / 20.0);
                     cx.props.on_event.call(*value.get());
-                },
+                }
             }
             input { 
                 r#type: "number",
@@ -256,26 +260,24 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                 value: *value.get(),
                 id: "Rate_number",
                 onwheel: move |ev|{
-                    let temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
+                    let mut temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
                     if temp_val > 40.0 {
-                        value.set(40.0);
+                        temp_val = 40.0;
                     } else if temp_val < 0.05 {
-                        value.set(0.05);
-                    } else {
-                        value.set(temp_val);
+                        temp_val = 0.05;
                     }
-                    cx.props.on_event.call(*value.get());
+                    value.set(temp_val);
+                    cx.props.on_event.call(temp_val);
                 },
                 onchange: move |ev|{
-                    let temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
+                    let mut temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
                     if temp_val > 40.0 {
-                        value.set(40.0);
-                    } else if temp_val < 0.5 {
-                        value.set(0.05);
-                    } else {
-                        value.set(temp_val);
+                        temp_val = 40.0;
+                    } else if temp_val < 0.05 {
+                        temp_val = 0.05;
                     }
-                    cx.props.on_event.call(*value.get());
+                    value.set(temp_val);
+                    cx.props.on_event.call(temp_val);
                 },
             }
         }
