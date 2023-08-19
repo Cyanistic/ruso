@@ -3,6 +3,11 @@ use std::path::PathBuf;
 use dioxus::{prelude::*};
 use dioxus_desktop::{Config, WindowBuilder};
 use crate::dioxus_elements::img;
+use tokio_tungstenite::connect_async;
+use futures_util::{SinkExt, StreamExt};
+use tokio::{sync::Mutex, io::AsyncWriteExt};
+use std::sync::Arc;
+use serde_json::from_str;
 use rfd::FileDialog;
 mod props;
 use props::*;
@@ -281,5 +286,48 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                 },
             }
         }
+    })
+}
+
+fn SettingsTab(cx: Scope) -> Element{
+    cx.render(rsx!{
+        h1 { "Settings" }
+    })
+}
+
+fn AutoTab(cx: Scope) -> Element{
+    let map = use_shared_state::<MapOptions>(cx)?;
+    let settings = use_shared_state::<Settings>(cx)?;
+    let gosu_reader: &Coroutine<()> = use_coroutine(cx, |rx: UnboundedReceiver<_>| { 
+        to_owned![map, settings];
+        async move{
+        loop {
+            let (mut socket, _) = match connect_async(&settings.read().websocket_url).await{
+                Ok(k) => k,
+                Err(e) => {
+                    println!("Error connecting to websocket: {}", e);
+                    continue;
+                }
+            };
+            let (_, mut read) = socket.split();
+            let recent_state: Arc<Mutex<serde_json::Value>> = Arc::new(Mutex::new(serde_json::Value::Null));
+            println!("{}", recent_state.lock().await["menu"]["bm"]["path"]["file"]);
+            let read_future = read.for_each(|message| async{
+                if let Ok(message) = message{
+                    let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
+                    let mut state = recent_state.lock().await;
+                    if (*state)["menu"]["bm"]["path"]["file"] != data["menu"]["bm"]["path"]["file"]{
+                        // tokio::io::stdout().write_all(data.to_string().as_bytes()).await.unwrap();
+                        map.write().songs_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].to_string());
+                        *map.write() = read_map_metadata(map.read().clone(), &settings.read()).unwrap();
+                        *state = data;
+                    }
+                }
+            });
+            read_future.await;
+        };
+    }});
+    cx.render(rsx!{
+        h1 { "Auto" }
     })
 }

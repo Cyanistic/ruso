@@ -1,10 +1,14 @@
-use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read}};
-use anyhow::{Result, anyhow};
+use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read}, time::Duration, sync::Arc};
+use anyhow::Result;
 use libosu::{prelude::*, events::Event::Background};
 extern crate gstreamer as gst;
 use gst::{prelude::*, MessageType};
 pub mod structs;
 pub use structs::{MapOptions, Settings};
+use tokio_tungstenite::{tungstenite::connect, connect_async};
+use tokio::{io::AsyncWriteExt, sync::Mutex};
+use futures_util::{SinkExt, Stream, StreamExt};
+use serde_json::{to_value, json, from_value, from_str};
 
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
     let map = Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
@@ -52,10 +56,8 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
     }.join("ruso");
     let mut cache_file = match OpenOptions::new().append(true).open(cache_dir.join("maps.txt")){
         Ok(k) => k,
-        Err(e) => match e.kind(){
-                ErrorKind::NotFound => File::create(cache_dir.join("maps.txt"))?,
-                _ => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
-            }
+        Err(e) if e.kind() == ErrorKind::NotFound => File::create(cache_dir.join("maps.txt"))?,
+        Err(e) => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
     };
 
     map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
@@ -101,7 +103,7 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
     Ok(())
 }
 
-fn generate_audio(audio_path: &Path, rate: f64) -> Result<PathBuf>{
+fn generate_audio(audio_path: &Path, rate: f64) -> Result<()>{
     gst::init()?;
     let final_path = audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).join(audio_path.extension().unwrap());
 
@@ -136,7 +138,7 @@ fn generate_audio(audio_path: &Path, rate: f64) -> Result<PathBuf>{
                 break;
             }
         }
-    Ok(final_path)
+    Ok(())
 }
 
 pub fn clean_maps() -> Result<()>{
@@ -146,12 +148,8 @@ pub fn clean_maps() -> Result<()>{
     }.join("ruso");
     let mut cache_file = match File::open(cache.join("ruso-map").join("maps.txt")){
         Ok(k) => k,
-        Err(e) => {
-            match e.kind(){
-                ErrorKind::NotFound => return Err(anyhow::anyhow!("No maps to clean")),
-                _ => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
-            };
-        }
+        Err(e) if e.kind() == ErrorKind::NotFound => return Err(anyhow::anyhow!("No maps to clean")),
+        Err(e) => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
     };
     let mut buf = String::new();
     cache_file.read_to_string(&mut buf)?;
@@ -170,9 +168,31 @@ pub fn round_dec(x: f64, decimals: u32) -> f64 {
     (x * y).round() / y
 }
 
+pub async fn gosu_websocket_listen(settings: &Settings) -> Result<()>{
+    let (mut socket, response) = connect_async(&settings.websocket_url).await?;
+    if response.status().is_success(){
+        println!("Connected to websocket");
+    }
+    let (_, mut read) = socket.split();
+    let recent_state: Arc<Mutex<serde_json::Value>> = Arc::new(Mutex::new(from_str(&read.next().await.unwrap()?.into_text()?)?));
+    println!("{}", recent_state.lock().await["menu"]["bm"]["path"]["file"]);
+    let read_future = read.for_each(|message| async{
+        let data: serde_json::Value = from_str(&message.unwrap().into_text().unwrap()).unwrap();
+        let mut state = recent_state.lock().await;
+        if (*state)["menu"]["bm"]["path"]["file"] != data["menu"]["bm"]["path"]["file"]{
+            tokio::io::stdout().write_all(data.to_string().as_bytes()).await.unwrap();
+            *state = data;
+        }
+    });
+    read_future.await;
+
+    Ok(())
+}
+
+
 #[cfg(test)]
 mod test{
-    // use super::*;
+    use super::*;
     // #[tokio::test]
     // async fn test1(){
     //     generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/991895 Kondo Koji - Slider/Kondo Koji - Slider (NikoSek) [YaHoo!!].osu"), 1.9).await.unwrap();
@@ -181,4 +201,8 @@ mod test{
     // async fn test2(){
     //     generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/1869337 Fellowship - Glory Days/Fellowship - Glory Days (EdgyKing) [Selfless Journey].osu"), 3.0).await.unwrap();
     // }
+    #[tokio::test]
+    async fn gosu_test(){
+        gosu_websocket_listen(&Settings::new()).await.unwrap();
+    }
 }

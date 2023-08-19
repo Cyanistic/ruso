@@ -47,7 +47,8 @@ pub struct Settings{
     pub ar_lock: bool,
     pub cs_lock: bool,
     pub hp_lock: bool,
-    pub od_lock: bool
+    pub od_lock: bool,
+    pub websocket_url: String
 }
 
 impl Settings{
@@ -58,7 +59,8 @@ impl Settings{
             ar_lock: false,
             cs_lock: false,
             hp_lock: false,
-            od_lock: false
+            od_lock: false,
+            websocket_url: "ws://localhost:24050/ws".to_string()
         }
     }
 }
