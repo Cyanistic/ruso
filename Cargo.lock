@@ -2543,6 +2543,7 @@ dependencies = [
  "gstreamer-audio",
  "libosu",
  "rfd",
+ "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite",

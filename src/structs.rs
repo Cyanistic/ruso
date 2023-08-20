@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
+
 #[derive(Clone, Debug, Props, PartialEq)]
 pub struct MapOptions{
     pub approach_rate: f64,
@@ -40,7 +42,7 @@ impl Default for MapOptions{
 }
 
 
-#[derive(Debug, Props, PartialEq)]
+#[derive(Debug, Props, PartialEq, Serialize, Deserialize)]
 pub struct Settings{
     pub slider_scroll: bool,
     pub theme: Theme,
@@ -48,7 +50,10 @@ pub struct Settings{
     pub cs_lock: bool,
     pub hp_lock: bool,
     pub od_lock: bool,
-    pub websocket_url: String
+    pub songs_path: PathBuf,
+    pub gosumemory_path: PathBuf,
+    pub gosumemory_startup: bool,
+    pub websocket_url: String,
 }
 
 impl Settings{
@@ -60,7 +65,26 @@ impl Settings{
             cs_lock: false,
             hp_lock: false,
             od_lock: false,
+            songs_path: PathBuf::new(),
+            gosumemory_path: PathBuf::new(),
+            gosumemory_startup: false,
             websocket_url: "ws://localhost:24050/ws".to_string()
+        }
+    }
+
+    pub fn new_from_config() -> Self{
+        let config_file = dirs::config_dir().unwrap().join("ruso").join("settings.json");
+        if config_file.exists(){
+            let config_data = std::fs::read_to_string(config_file).unwrap();
+            match serde_json::from_str(&config_data){
+                Ok(k) => k,
+                Err(e) => {
+                    eprintln!("Error parsing config file: {}, using default settings", e);
+                    Self::new()
+                }
+            }
+        }else {
+            Self::new()
         }
     }
 }
@@ -98,7 +122,7 @@ pub enum Status{
     Error
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Theme{
     Light,
     Dark,

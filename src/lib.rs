@@ -1,14 +1,14 @@
-use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read}, time::Duration, sync::Arc};
+use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read}, sync::Arc};
 use anyhow::Result;
 use libosu::{prelude::*, events::Event::Background};
 extern crate gstreamer as gst;
 use gst::{prelude::*, MessageType};
 pub mod structs;
 pub use structs::{MapOptions, Settings};
-use tokio_tungstenite::{tungstenite::connect, connect_async};
+use tokio_tungstenite::{connect_async};
 use tokio::{io::AsyncWriteExt, sync::Mutex};
-use futures_util::{SinkExt, Stream, StreamExt};
-use serde_json::{to_value, json, from_value, from_str};
+use futures_util::{StreamExt};
+use serde_json::{from_str};
 
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
     let map = libosu::beatmap::Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
@@ -54,6 +54,9 @@ pub fn generate_map(map: &MapOptions) -> Result<()>{
         Some(k) => k,
         None => return Err(anyhow::anyhow!("Couldn't find cache directory"))
     }.join("ruso");
+    if !cache_dir.exists(){
+        std::fs::create_dir_all(&cache_dir)?;
+    }
     let mut cache_file = match OpenOptions::new().append(true).open(cache_dir.join("maps.txt")){
         Ok(k) => k,
         Err(e) if e.kind() == ErrorKind::NotFound => File::create(cache_dir.join("maps.txt"))?,
@@ -169,7 +172,7 @@ pub fn round_dec(x: f64, decimals: u32) -> f64 {
 }
 
 pub async fn gosu_websocket_listen(settings: &Settings) -> Result<()>{
-    let (mut socket, response) = connect_async(&settings.websocket_url).await?;
+    let (socket, response) = connect_async(&settings.websocket_url).await?;
     if response.status().is_success(){
         println!("Connected to websocket");
     }
@@ -189,6 +192,50 @@ pub async fn gosu_websocket_listen(settings: &Settings) -> Result<()>{
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
+pub fn gosu_startup(settings: &Settings) -> Result<()>{
+    use std::process::Command;
+    if settings.gosumemory_path.is_file(){
+        if settings.songs_path.is_dir() {
+            Command::new("sudo")
+            .args([settings.gosumemory_path.to_str().unwrap(), "--path", settings.songs_path.to_str().unwrap()])
+            .spawn()?;
+        }else{
+            return Err(anyhow::anyhow!("Songs path not found"))
+        }
+    }else{
+        return Err(anyhow::anyhow!("gosumemory executable not found"))
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn gosu_startup(settings: &Settings) -> Result<()>{
+    use std::process::Command;
+    if settings.gosumemory_path.is_file(){
+        if settings.songs_path.is_dir() {
+            Command::new(settings.gosumemory_path.to_str().unwrap())
+            .args(["--path", settings.songs_path.to_str().unwrap()])
+            .spawn()?;
+        }else{
+            return Err(anyhow::anyhow!("Songs path not found"))
+        }
+    }else{
+        return Err(anyhow::anyhow!("gosumemory executable not found"))
+    }
+    Ok(())
+}
+
+pub fn write_config(settings: &Settings) -> Result<()>{
+    let config_path = dirs::config_dir().unwrap().join("ruso");
+    if !config_path.exists(){
+        std::fs::create_dir_all(&config_path)?;
+    }
+    let mut config_file = File::create(config_path.join("settings.json"))?;
+    let config_json = serde_json::to_string_pretty(settings)?;
+    write!(config_file, "{}", config_json)?;
+    Ok(())
+}
 
 #[cfg(test)]
 mod test{

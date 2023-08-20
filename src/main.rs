@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 use std::path::PathBuf;
-use dioxus::{prelude::*};
+use dioxus::{prelude::*, html::input_data::keyboard_types::Key};
 use dioxus_desktop::{Config, WindowBuilder};
 use crate::dioxus_elements::img;
 use tokio_tungstenite::connect_async;
@@ -22,20 +22,15 @@ fn main() {
 }
 
 fn App(cx: Scope) -> Element {
-    use_shared_state_provider(cx, || ruso::structs::MapOptions::new());
-    use_shared_state_provider(cx, || Settings::new());
+    use_shared_state_provider(cx, || MapOptions::new());
+    use_shared_state_provider(cx, || Settings::new_from_config());
     use_shared_state_provider(cx, || Tab::Manual);
     use_shared_state_provider(cx, || StatusMessage::new());
-
-    let map = use_shared_state::<MapOptions>(cx)?;
-    let mut map_clone = MapOptions::new();
-    let settings = use_shared_state::<Settings>(cx)?;
     let tab = use_shared_state::<Tab>(cx)?;
-    let msg = use_shared_state::<StatusMessage>(cx)?;
-
-    let songs_folder = use_state(cx, || PathBuf::new());
-    let selected_map = use_state(cx, || PathBuf::new());
-
+    let settings = use_shared_state::<Settings>(cx)?;
+    if settings.read().gosumemory_startup{
+        gosu_startup(&settings.read()).unwrap();
+    }
     cx.render(rsx! {
             div {
                 button{
@@ -54,7 +49,7 @@ fn App(cx: Scope) -> Element {
             match *tab.read() {
                 Tab::Auto => rsx!{ AutoTab{} },
                 Tab::Manual => rsx!{ ManualTab{} },
-        Tab::Settings => rsx! { SettingsTab{} },
+                Tab::Settings => rsx! { SettingsTab{} },
         }
     })
 }
@@ -115,8 +110,8 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 rsx!{
                     img {
                         src: "{root_dir.join(\"assets/locked-lock.png\").display()}",
-                        width: "32px",
-                        height: "32px",
+                        width: "26px",
+                        height: "26px",
                         onclick: move |_| {
                             cx.props.on_lock.call(cx.props.locked);
                         },
@@ -126,8 +121,8 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 rsx!{
                     img {
                         src: "{root_dir.join(\"assets/unlocked-lock.png\").display()}",
-                        width: "32px",
-                        height: "32px",
+                        width: "26px",
+                        height: "26px",
                         onclick: move |_| {
                             cx.props.on_lock.call(cx.props.locked);
                         },
@@ -202,12 +197,13 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
 }
 
 fn SettingsTab(cx: Scope) -> Element{
+    let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     cx.render(rsx!{
         h1 { "Settings" }
         div {
             title: "Settings",
-            "Theme:"
+            "Theme: "
             select {
                 onchange: move |ev|{
                     settings.write().theme = match ev.data.value.as_str(){
@@ -223,6 +219,79 @@ fn SettingsTab(cx: Scope) -> Element{
                 option { "osu!" }
                 option { "Custom" }
             }
+            br {}
+            "Websocket URL: "
+            input {
+                r#type: "text",
+                value: "{settings.read().websocket_url}",
+                title: "Websocket URL: This is the url of the websocket that ruso will connect to when auto is chosen, you probably don't want to touch this.",
+                placeholder: "ws://localhost:24050/ws",
+                oninput: move |ev| settings.write().websocket_url = ev.value.clone()
+            }
+            br {}
+            "gosumemory path: "
+            input {
+                r#type: "text",
+                value: "{settings.read().gosumemory_path.display()}",
+                title: "gosumemory path: This is the path to your gosumemory executable, which ruso requires for auto selection",
+                placeholder: "C:\\Program Files\\gosumemory",
+                oninput: move |ev| settings.write().gosumemory_path = PathBuf::from(ev.value.clone())
+            }
+            button {
+                    onclick: move |_| {
+                        let file_picker = FileDialog::new()
+                        .set_title("Choose your gosumerory executable");
+                        let selected = match file_picker.pick_file(){
+                            Some(k) => k,
+                            None => return
+                        };
+                        settings.write().gosumemory_path = selected;
+                    },
+                    "Choose path"
+            }
+            br {}
+            "Run gosumemory on startup: "
+            input {
+                r#type: "checkbox",
+                value: "{settings.read().gosumemory_startup}",
+                title: "Attempt to run gosumemory on startup using given path (requires sudo permissions on linux)",
+                onclick: move |_| {
+                    let temp = settings.read().gosumemory_startup;
+                    settings.write().gosumemory_startup = !temp;
+                }
+            }
+            br {}
+            "osu! songs path: "
+            input {
+                r#type: "text",
+                value: "{settings.read().songs_path.display()}",
+                title: "osu! songs path: This is the path to your osu! songs folder",
+                placeholder: "C:\\Users\\User\\AppData\\Local\\osu!\\Songs",
+                oninput: move |ev| settings.write().songs_path = PathBuf::from(ev.value.clone())
+            }
+            button {
+                    onclick: move |_| {
+                        let dir_picker = FileDialog::new()
+                        .set_title("Choose your osu! Songs directory");
+                        let selected = match dir_picker.pick_folder(){
+                            Some(k) => k,
+                            None => return
+                        };
+                        settings.write().songs_path = selected.clone();
+                        map.write().songs_path = selected;
+                    },
+                    "Choose path"
+            }
+            br {}
+            button {
+                onclick: move |_| {
+                    match write_config(&settings.read()){
+                        Ok(_) => println!("Settings saved to file successfully!"),
+                        Err(e) => eprintln!("Error saving settings: {}", e)
+                    }
+                },
+                "Save settings"
+            }
             h6 {
                 "Config Path: {dirs::config_dir().unwrap().join(\"ruso\").display()}"
             }
@@ -234,11 +303,11 @@ fn AutoTab(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
-    let gosu_reader: &Coroutine<()> = use_coroutine(cx, |rx: UnboundedReceiver<_>| { 
+    let gosu_reader: &Coroutine<()> = use_coroutine(cx, |_: UnboundedReceiver<_>| { 
         to_owned![map, settings, msg];
         async move{
         let settings_url = settings.read().websocket_url.clone();
-        'outer: loop {
+        loop {
             let (mut socket, _) = match connect_async(&settings_url).await{
                 Ok(k) => k,
                 Err(e) => {
@@ -319,6 +388,7 @@ fn MapOptionsComponent(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
+
     cx.render(rsx!{
                 if let Some(bg) = &map.read().background{
                     rsx!{
@@ -386,7 +456,9 @@ fn MapOptionsComponent(cx: Scope) -> Element{
                     }
                     button {
                         onclick: move |_| {
-                        },
+                        let temp_map = map.read().clone();
+                        *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
+                    },
                         "Reset"
                     }
                 }
