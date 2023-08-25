@@ -1,4 +1,4 @@
-use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read}, sync::Arc};
+use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read}, sync::Arc, process};
 use anyhow::Result;
 use libosu::{prelude::*, events::Event::Background};
 extern crate gstreamer as gst;
@@ -197,8 +197,9 @@ pub fn gosu_startup(settings: &Settings) -> Result<()>{
     use std::process::Command;
     if settings.gosumemory_path.is_file(){
         if settings.songs_path.is_dir() {
-            Command::new("sudo")
+            Command::new("pkexec")
             .args([settings.gosumemory_path.to_str().unwrap(), "--path", settings.songs_path.to_str().unwrap()])
+            .stdout(std::process::Stdio::null())
             .spawn()?;
         }else{
             return Err(anyhow::anyhow!("Songs path not found"))
@@ -236,6 +237,7 @@ pub fn write_config(settings: &Settings) -> Result<()>{
     write!(config_file, "{}", config_json)?;
     Ok(())
 }
+
 
 #[cfg(test)]
 mod test{

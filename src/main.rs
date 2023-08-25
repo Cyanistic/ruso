@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use dioxus::{prelude::*, html::input_data::keyboard_types::Key};
 use dioxus_desktop::{Config, WindowBuilder};
 use crate::dioxus_elements::img;
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
-use tokio::{sync::Mutex, io::AsyncWriteExt};
+use tokio::{sync::Mutex, io::AsyncWriteExt, task::yield_now};
 use std::sync::Arc;
 use serde_json::from_str;
 use rfd::FileDialog;
@@ -13,24 +13,25 @@ mod props;
 use props::*;
 use ruso::*;
 use crate::structs::*;
-fn main() {
+#[tokio::main]
+async fn main() {
+    let settings = Settings::new_from_config();
+    if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
+        gosu_startup(&settings).unwrap();
+    }
     dioxus_desktop::launch_cfg(App,
-        Config::default().with_window(WindowBuilder::new().with_resizable(true)
+        Config::default().with_window(WindowBuilder::new().with_maximizable(true).with_maximizable(true).with_resizable(true)
         .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 800.0)))
     );
     unsafe { gstreamer::deinit() };
 }
 
 fn App(cx: Scope) -> Element {
-    use_shared_state_provider(cx, || MapOptions::new());
     use_shared_state_provider(cx, || Settings::new_from_config());
+    use_shared_state_provider(cx, || MapOptions::new());
     use_shared_state_provider(cx, || Tab::Manual);
     use_shared_state_provider(cx, || StatusMessage::new());
     let tab = use_shared_state::<Tab>(cx)?;
-    let settings = use_shared_state::<Settings>(cx)?;
-    if settings.read().gosumemory_startup{
-        gosu_startup(&settings.read()).unwrap();
-    }
     cx.render(rsx! {
             div {
                 button{
@@ -253,7 +254,7 @@ fn SettingsTab(cx: Scope) -> Element{
             "Run gosumemory on startup: "
             input {
                 r#type: "checkbox",
-                value: "{settings.read().gosumemory_startup}",
+                checked: "{settings.read().gosumemory_startup}",
                 title: "Attempt to run gosumemory on startup using given path (requires sudo permissions on linux)",
                 onclick: move |_| {
                     let temp = settings.read().gosumemory_startup;
@@ -306,37 +307,50 @@ fn AutoTab(cx: Scope) -> Element{
     let gosu_reader: &Coroutine<()> = use_coroutine(cx, |_: UnboundedReceiver<_>| { 
         to_owned![map, settings, msg];
         async move{
-        let settings_url = settings.read().websocket_url.clone();
-        loop {
+            let settings_url = match url::Url::parse(settings.read().websocket_url.clone().as_str()){
+                Ok(k) => k,
+                Err(e) => {
+                    msg.write().text = Some(format!("Error parsing websocket url: {}", e));
+                    msg.write().status = Status::Error;
+                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                    return
+                }
+            };
+            println!("Connecting to websocket: {}", &settings_url);
             let (mut socket, _) = match connect_async(&settings_url).await{
                 Ok(k) => k,
                 Err(e) => {
                     msg.write().text = Some(format!("Error connecting to websocket: {}", e));
                     msg.write().status = Status::Error;
                     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                    continue;
-                }
-            };
-            let (_, read) = socket.split();
-            let recent_state: Arc<Mutex<serde_json::Value>> = Arc::new(Mutex::new(serde_json::Value::Null));
-            let read_future = read.for_each(|message| async{
-                if let Ok(message) = message{
-                    let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
-                    let mut state = recent_state.lock().await;
-                    if (*state)["menu"]["bm"]["path"]["file"] != data["menu"]["bm"]["path"]["file"]{
-                        map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
-                        map.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
-                        let temp_map = map.read().clone();
-                        *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
-                        *state = data;
-                    }
-                }else{
-                    println!("Error reading websocket message: {:?}", message);
                     return
                 }
-            });
-            read_future.await;
-        };
+            };
+            dbg!("Connected to websocket");
+            let (_, mut read) = socket.split();
+            let mut count = 0;
+            let local = tokio::task::LocalSet::new();
+            local.run_until( async move{
+            tokio::task::spawn_local( async move{
+                while let Some(message) = read.next().await{
+                    count += 1;
+                    dbg!(count);
+                    match message{
+                        Ok(message) => {
+                            let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
+                            if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
+                                map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
+                                map.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
+                                let temp_map = map.read().clone();
+                                *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
+                            }
+                        },
+                        Err(e) => {
+                            println!("Error reading websocket message: {:?}", e);
+                        }
+                    }
+                };
+            }).await;}).await;
     }});
     cx.render(rsx!{
         h1 { "Auto" }
@@ -348,20 +362,15 @@ fn ManualTab(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
+    
     cx.render(rsx!{
-            h2 { "Choose your osu Songs directory!" }
-            div {            
-                h4 { "Current directory:" "{map.read().songs_path.display()}" }
-                button {
-                    onclick: move |_| {
-                        let dir_picker = FileDialog::new()
-                            .set_title("Choose your osu! Songs directory");
-                        map.write().songs_path = dir_picker.pick_folder().unwrap();
-                    },
-                    "Choose path"
+            if *settings.read().songs_path == PathBuf::new(){
+                rsx!{
+                    h2 { "Choose your osu Songs directory in the Settings tab!" }
                 }
-                if *map.read().songs_path != PathBuf::new(){
-                   rsx!{
+            }else{
+                rsx!{
+                    h4 { "Current directory:" "{settings.read().songs_path.display()}" }
                         h4 { "Selected map: " "{map.read().map_path.display()}" }
                         button {
                         onclick: move |_| {
@@ -377,8 +386,17 @@ fn ManualTab(cx: Scope) -> Element{
                         },
                         "Choose path"
                         }
-                    }
                 }
+            }
+            div {            
+                // button {
+                //     onclick: move |_| {
+                //         let dir_picker = FileDialog::new()
+                //             .set_title("Choose your osu! Songs directory");
+                //         map.write().songs_path = dir_picker.pick_folder().unwrap();
+                //     },
+                //     "Choose path"
+                // }
                 MapOptionsComponent{}
             }
     })

@@ -17,12 +17,6 @@ pub struct MapOptions{
 impl MapOptions{
     pub fn new() -> Self{
         MapOptions { 
-            // difficulty: HashMap::from([
-            //    ("HP Drain", 5.0),
-            //    ("Circle Size", 5.0),
-            //    ("Approach Rate", 5.0),
-            //    ("Overall Difficulty", 5.0),
-            // ]),
             approach_rate: 5.0,
             circle_size: 5.0,
             hp_drain: 5.0,
