@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use std::path::PathBuf;
+use std::{path::PathBuf, io::ErrorKind};
 use dioxus::{prelude::*, html::input_data::keyboard_types::Key};
 use dioxus_desktop::{Config, WindowBuilder};
 use crate::dioxus_elements::img;
@@ -21,7 +21,7 @@ async fn main() {
     }
     dioxus_desktop::launch_cfg(App,
         Config::default().with_window(WindowBuilder::new().with_maximizable(true).with_maximizable(true).with_resizable(true)
-        .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 800.0)))
+        .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 600.0)))
     );
     unsafe { gstreamer::deinit() };
 }
@@ -199,6 +199,7 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
 
 fn SettingsTab(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
+    let msg = use_shared_state::<StatusMessage>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     cx.render(rsx!{
         h1 { "Settings" }
@@ -293,6 +294,23 @@ fn SettingsTab(cx: Scope) -> Element{
                 },
                 "Save settings"
             }
+            br {}
+            button {
+                title: "Clean maps: This will remove all maps that ruso has created, this will not remove any maps that you have created yourself.",
+                onclick: move |_| {
+                    match clean_maps(&settings.read()){
+                        Ok(k) => {
+                            msg.write().text = Some(format!("Cleaned {} files successfully!", k));
+                            msg.write().status = Status::Success;
+                        },
+                        Err(e) => {
+                            msg.write().text = Some(format!("Error cleaning maps: {}", e));
+                            msg.write().status = Status::Error;
+                        }
+                    }
+                },
+                "Clean maps"
+            }
             h6 {
                 "Config Path: {dirs::config_dir().unwrap().join(\"ruso\").display()}"
             }
@@ -304,7 +322,7 @@ fn AutoTab(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
-    let gosu_reader: &Coroutine<()> = use_coroutine(cx, |_: UnboundedReceiver<_>| { 
+    let _: &Coroutine<()> = use_coroutine(cx, |_: UnboundedReceiver<_>| { 
         to_owned![map, settings, msg];
         async move{
             let settings_url = match url::Url::parse(settings.read().websocket_url.clone().as_str()){
@@ -328,30 +346,36 @@ fn AutoTab(cx: Scope) -> Element{
             };
             dbg!("Connected to websocket");
             let (_, mut read) = socket.split();
-            let mut count = 0;
             let local = tokio::task::LocalSet::new();
             local.run_until( async move{
-            tokio::task::spawn_local( async move{
-                while let Some(message) = read.next().await{
-                    count += 1;
-                    dbg!(count);
-                    match message{
-                        Ok(message) => {
-                            let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
-                            if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
-                                map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
-                                map.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
-                                let temp_map = map.read().clone();
-                                *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
+                tokio::task::spawn_local( async move{
+                    while let Some(message) = read.next().await{
+                        match message{
+                            Ok(message) => {
+                                let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
+                                if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
+                                    map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
+                                    map.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
+                                    let temp_map = map.read().clone();
+                                    *map.write() = match read_map_metadata(temp_map, &settings.read()){
+                                        Ok(k) => k,
+                                        Err(e) => {
+                                            msg.write().text = Some(format!("Error reading map metadata: {}", e));
+                                            msg.write().status = Status::Error;
+                                            continue
+                                        }
+                                    };
+                                }
+                            },
+                            Err(e) => {
+                                println!("Error reading websocket message: {:?}", e);
                             }
-                        },
-                        Err(e) => {
-                            println!("Error reading websocket message: {:?}", e);
                         }
-                    }
-                };
-            }).await;}).await;
-    }});
+                    };
+                }).await;
+            }).await;
+        }
+    });
     cx.render(rsx!{
         h1 { "Auto" }
         MapOptionsComponent{}
@@ -406,12 +430,31 @@ fn MapOptionsComponent(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
+    let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
     cx.render(rsx!{
                 if let Some(bg) = &map.read().background{
+                    if map.read().songs_path.join(bg).exists(){
+                        rsx!{
+                            img {
+                                src: "{map.read().songs_path.join(bg).display()}",
+                                width: "100%",
+                                height: "100%"
+                            }
+                        }
+                    }else{
+                        rsx!{
+                            img {
+                                src: "{root_dir.join(\"assets/nobg.png\").display()}",
+                                width: "100%",
+                                height: "100%"
+                            }
+                        }
+                    }
+                }else{
                     rsx!{
                         img {
-                            src: "{map.read().songs_path.join(bg).display()}",
+                            src: "{root_dir.join(\"assets/nobg.png\").display()}",
                             width: "100%",
                             height: "100%"
                         }

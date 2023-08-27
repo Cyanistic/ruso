@@ -38,7 +38,6 @@ impl Default for MapOptions{
 
 #[derive(Debug, Props, PartialEq, Serialize, Deserialize)]
 pub struct Settings{
-    pub slider_scroll: bool,
     pub theme: Theme,
     pub ar_lock: bool,
     pub cs_lock: bool,
@@ -53,7 +52,6 @@ pub struct Settings{
 impl Settings{
     pub fn new() -> Self{
         Settings{
-            slider_scroll: false,
             theme: Theme::Dark,
             ar_lock: false,
             cs_lock: false,
