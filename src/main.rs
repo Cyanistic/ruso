@@ -497,16 +497,29 @@ fn MapOptionsComponent(cx: Scope) -> Element{
             title: "Buttons",
             button {
                 onclick: move |_| {
-                    match generate_map(&map.read(), &settings.read()){
-                        Ok(_) => {
-                            msg.write().text = Some("Map created successfully!".to_string());
-                            msg.write().status = Status::Success;
-                        },
-                        Err(e) => {
-                            msg.write().text = Some(format!("Error creating map: {}", e));
-                            msg.write().status = Status::Error;
-                        }
-                    };
+                    if map.read().rate != 1.0{
+                        match generate_map(&map.read(), &settings.read()){
+                            Ok(_) => {
+                                msg.write().text = Some("Map created successfully!".to_string());
+                                msg.write().status = Status::Success;
+                            },
+                            Err(e) => {
+                                msg.write().text = Some(format!("Error creating map: {}", e));
+                                msg.write().status = Status::Error;
+                            }
+                        };
+                    }else{
+                        match change_map_difficulty(&map.read(), &settings.read()){
+                            Ok(_) => {
+                                msg.write().text = Some("Map created successfully!".to_string());
+                                msg.write().status = Status::Success;
+                            },
+                            Err(e) => {
+                                msg.write().text = Some(format!("Error creating map: {}", e));
+                                msg.write().status = Status::Error;
+                            }
+                        };
+                    }
                 },
                 "Create map"
             }
