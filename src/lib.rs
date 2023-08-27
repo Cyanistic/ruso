@@ -5,13 +5,13 @@ extern crate gstreamer as gst;
 use gst::{prelude::*, MessageType};
 pub mod structs;
 pub use structs::{MapOptions, Settings};
-use tokio_tungstenite::{connect_async};
+use tokio_tungstenite::connect_async;
 use tokio::{io::AsyncWriteExt, sync::Mutex};
-use futures_util::{StreamExt};
-use serde_json::{from_str};
+use futures_util::StreamExt;
+use serde_json::from_str;
 
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
-    let map = libosu::beatmap::Beatmap::parse(File::open(options.songs_path.join(&options.map_path))?)?;
+    let map = libosu::beatmap::Beatmap::parse(File::open(settings.songs_path.join(&options.map_path))?)?;
     let mut new_options = MapOptions{
         approach_rate: map.difficulty.approach_rate as f64,
         overall_difficulty: map.difficulty.overall_difficulty as f64,
@@ -44,8 +44,8 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
     Ok(new_options)
 }
 
-pub fn generate_map(map: &MapOptions) -> Result<()>{
-    let path = &map.songs_path.join(&map.map_path);
+pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
+    let path = &settngs.songs_path.join(&map.map_path);
     let rate = map.rate;
     let map_file = File::open(path)?;
     let mut map_data = libosu::beatmap::Beatmap::parse(map_file)?;
@@ -154,14 +154,17 @@ pub fn clean_maps(settings: &Settings) -> Result<usize>{
         Some(k) => k,
         None => return Err(anyhow::anyhow!("Couldn't find cache directory"))
     }.join("ruso");
-    let mut file_contents = match std::fs::read_to_string(cache.join("maps.txt")){
+
+    let file_contents = match std::fs::read_to_string(cache.join("maps.txt")){
         Ok(k) => k,
         Err(e) if e.kind() == ErrorKind::NotFound => return Err(anyhow::anyhow!("No maps to clean")),
         Err(e) => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
     };
+
     let undeleted = OpenOptions::new().write(true).open(cache.join("maps.txt"))?;
     let mut writer = BufWriter::new(undeleted);
     let mut cleaned: usize = 0;
+
     for line in file_contents.lines(){
         let path: PathBuf;
         if let Some(ind) = line.find("//"){
@@ -277,7 +280,6 @@ mod test{
             overall_difficulty: 5.0,
             background: None,
             map_path: PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs"),
-            songs_path: PathBuf::from("1395853 Camellia FeatNanahira - Mathematics MA+MA = Magic!/Camellia Feat.Nanahira - Mathematics MA+MA = Magic! (Forthnos) [EXHAUST](1.3).osu"),
             rate: 1.3
         }, &Settings::new()).unwrap();
     }
