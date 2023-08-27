@@ -1,5 +1,6 @@
 [package]
 name = "ruso"
+author = "Cyanism"
 version = "0.1.0"
 edition = "2021"
 
@@ -22,6 +23,3 @@ serde_json = "1.0.105"
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-tungstenite = "0.20.0"
 url = "2.4.0"
-
-[build-dependencies]
-cxx-build = "1.0"
