@@ -10,6 +10,7 @@ pub struct MapOptions{
     pub overall_difficulty: f64,
     pub background: Option<PathBuf>,
     pub map_path: PathBuf,
+    pub bpm: usize,
     pub rate: f64,
 }
 
@@ -22,6 +23,7 @@ impl MapOptions{
             overall_difficulty: 5.0,
             background: None,
             map_path: PathBuf::new(), 
+            bpm: 100,
             rate: 1.0
         }
     }

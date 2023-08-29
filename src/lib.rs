@@ -17,6 +17,7 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
         overall_difficulty: map.difficulty.overall_difficulty as f64,
         circle_size: map.difficulty.circle_size as f64,
         hp_drain: map.difficulty.hp_drain_rate as f64,
+        bpm: calculate_bpm(&map.timing_points),
         background: {
             let mut bg = None;
             for i in map.events{
@@ -96,8 +97,12 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
         }
     }
 
-    for t in &mut map_data.timing_points{
-        t.time.0 = (t.time.0 as f64 / rate).round() as i32;
+    for point in &mut map_data.timing_points{
+        point.time.0 = (point.time.0 as f64 / rate).round() as i32;
+        if let TimingPointKind::Uninherited(point) = &mut point.kind{
+            point.mpb /= rate;
+        }
+    
     }
 
     let new_path = path.parent().unwrap().join(path.file_stem().unwrap());
@@ -189,6 +194,13 @@ pub fn change_map_difficulty(map: &MapOptions, settings: &Settings) -> Result<()
     writeln!(cache_file, "{}", new_path)?;
 
     Ok(())
+}
+
+pub fn calculate_bpm(points: &[TimingPoint]) -> usize{
+    (60000.0 / points.iter().filter_map(|x| match &x.kind{
+        TimingPointKind::Uninherited(k) => Some(k.mpb.abs()),
+        _ => None
+    }).max_by(|x,y| x.partial_cmp(y).unwrap()).unwrap_or(100.0)).round() as usize
 }
 
 pub fn clean_maps(settings: &Settings) -> Result<usize>{
@@ -322,7 +334,15 @@ mod test{
             overall_difficulty: 5.0,
             background: None,
             map_path: PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs"),
+            bpm: 100,
             rate: 1.3
         }, &Settings::new()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn get_bpm(){
+        let map = libosu::beatmap::Beatmap::parse(File::open("/home/cyan/.local/share/osu-wine/osu!/Songs/991895 Kondo Koji - Slider/Kondo Koji - Slider (NikoSek) [YaHoo!! x1.1].osu").unwrap()).unwrap();
+        let bpm = calculate_bpm(&map.timing_points);
+        assert_eq!(bpm, 100);
     }
 }

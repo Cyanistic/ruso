@@ -128,14 +128,16 @@ fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                     }
                 }
             }
-        
         }
     })
 }
 
 #[inline_props]
-fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
+fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, rate: f64) -> Element{
     let value = use_state(cx, || 1.0);
+    let new_bpm = use_memo(cx, (bpm, value), |(bpm, value)| {
+        (bpm as f64 * *value.get()).round() as usize
+    });
     
     cx.render(rsx! {
         div {
@@ -168,8 +170,38 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                 min: 0.05,
                 max: 40,
                 step: 0.05,
-                value: *value.get(),
+                value: round_dec(*value.get(), 2),
                 id: "Rate_number",
+                onwheel: move |ev|{
+                    let mut temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
+                    if temp_val > 40.0 {
+                        temp_val = 40.0;
+                    } else if temp_val < 0.05 {
+                        temp_val = 0.05;
+                    }
+                    value.set(temp_val);
+                    cx.props.on_event.call(round_dec(temp_val, 2));
+                },
+                onchange: move |ev|{
+                    let mut temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
+                    if temp_val > 40.0 {
+                        temp_val = 40.0;
+                    } else if temp_val < 0.05 {
+                        temp_val = 0.05;
+                    }
+                    value.set(temp_val);
+                    cx.props.on_event.call(round_dec(temp_val, 2));
+                },
+            }
+            br {}
+            "BPM"
+            input { 
+                r#type: "number",
+                min: 0,
+                max: f64::MAX,
+                step: 1,
+                value: "{new_bpm}",
+                id: "bpm_number",
                 onwheel: move |ev|{
                     let mut temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
                     if temp_val > 40.0 {
@@ -181,14 +213,10 @@ fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>) -> Element{
                     cx.props.on_event.call(temp_val);
                 },
                 onchange: move |ev|{
-                    let mut temp_val = ev.data.value.parse::<f64>().unwrap_or(*value.get());
-                    if temp_val > 40.0 {
-                        temp_val = 40.0;
-                    } else if temp_val < 0.05 {
-                        temp_val = 0.05;
-                    }
-                    value.set(temp_val);
-                    cx.props.on_event.call(temp_val);
+                    let temp_val = ev.data.value.parse::<usize>().unwrap_or(*new_bpm);
+                    let new_rate = temp_val as f64 / *bpm as f64;
+                    value.set(new_rate);
+                    cx.props.on_event.call(new_rate);
                 },
             }
         }
@@ -490,7 +518,9 @@ fn MapOptionsComponent(cx: Scope) -> Element{
                 on_lock: move |ev: bool| settings.write().od_lock = !ev
             }
             RateSlider {
-                on_event: move |ev| map.write().rate = ev
+                bpm: map.read().bpm,
+                on_event: move |ev| map.write().rate = ev,
+                rate: map.read().rate
             }
         }
         div {
