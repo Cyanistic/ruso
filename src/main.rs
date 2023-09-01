@@ -30,7 +30,26 @@ fn App(cx: Scope) -> Element {
     use_shared_state_provider(cx, || Tab::Manual);
     use_shared_state_provider(cx, || StatusMessage::new());
     let tab = use_shared_state::<Tab>(cx)?;
+    let settings = use_shared_state::<Settings>(cx)?;
     cx.render(rsx! {
+            style{ include_str!("css/style.css") }
+            match settings.read().theme{
+                Theme::Light => rsx! {
+                    style { include_str!("css/light.css") }
+                },                                          
+                Theme::Dark => rsx! {                       
+                    style { include_str!("css/dark.css") }
+                },                                          
+                Theme::Osu => rsx! {                        
+                    style { include_str!("css/osu.css") }
+                },
+                Theme::Custom => {
+                    // let content = std::fs::read_to_string(dirs::config_dir().unwrap().join("ruso").join("custom.css")).unwrap();
+                    rsx! {
+                        style { std::fs::read_to_string(dirs::config_dir().unwrap().join("ruso").join("custom.css")).unwrap() }
+                    }
+                }
+            }
             div {
                 button{
                     onclick: move |_| *tab.write() = Tab::Auto,
@@ -233,6 +252,13 @@ fn SettingsTab(cx: Scope) -> Element{
             title: "Settings",
             "Theme: "
             select {
+                value: match settings.read().theme{
+                    Theme::Light => "Light",
+                    Theme::Dark => "Dark",
+                    Theme::Osu => "osu!",
+                    Theme::Custom => "Custom"
+                },
+                
                 onchange: move |ev|{
                     settings.write().theme = match ev.data.value.as_str(){
                         "Light" => Theme::Light,
