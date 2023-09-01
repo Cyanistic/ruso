@@ -1,14 +1,16 @@
-use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read, BufWriter}, sync::Arc, process};
-use anyhow::Result;
+use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read, BufWriter}, sync::Arc, process, any::Any};
+use anyhow::{Result, anyhow};
 use libosu::{prelude::*, events::Event::Background};
-extern crate gstreamer as gst;
-use gst::{prelude::*, MessageType};
+// extern crate gstreamer as gst;
+// use gst::{prelude::*, MessageType, Pipeline, ElementFactory, MessageView};
 pub mod structs;
 pub use structs::{MapOptions, Settings};
 use tokio_tungstenite::connect_async;
 use tokio::{io::AsyncWriteExt, sync::Mutex};
 use futures_util::StreamExt;
 use serde_json::from_str;
+mod audio;
+use audio::*;
 
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
     let map = libosu::beatmap::Beatmap::parse(File::open(settings.songs_path.join(&options.map_path))?)?;
@@ -80,8 +82,7 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
 
     let audio_closure = audio_path.clone();
     let audio_thread = std::thread::spawn(move || {
-        generate_audio(&audio_closure, rate)?;
-        Ok::<(), anyhow::Error>(())
+        generate_audio(&audio_closure, rate)
     });
 
     for h in &mut map_data.hit_objects{
@@ -117,40 +118,66 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     Ok(())
 }
 
-fn generate_audio(audio_path: &Path, rate: f64) -> Result<()>{
-    gst::init()?;
-    let final_path = format!("{}({}).{}",audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap());
-    let pipeline_description = match audio_path.extension().unwrap().to_str().unwrap().to_lowercase().as_str(){
-        "mp3" => format!(
-           "filesrc location=\"{}\" ! mpegaudioparse ! mpg123audiodec ! decodebin ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! audioresample ! lamemp3enc target=quality quality=0 ! id3v2mux ! filesink location=\"{}\"",
-           &audio_path.display(),
-           &rate,
-           &final_path
-        ),
-        "ogg" => format!(
-           "filesrc location=\"{}\" ! oggdemux ! vorbisdec ! audioconvert ! speed speed={} ! vorbisenc ! oggmux ! filesink location=\"{}\"",
-           &audio_path.display(),
-           &rate,
-           &final_path
-        ),
-        "wav" => format!(
-           "filesrc location=\"{}\" ! wavparse ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! wavenc ! filesink location=\"{}\"",
-           &audio_path.display(),
-           &rate,
-           &final_path
-        ),
-        e => return Err(anyhow::anyhow!("Unsupported file type: {}", e))
-    };
+// fn generate_audio(audio_path: &Path, rate: f64) -> Result<()>{
+//     gst::init()?;
+//     let final_path = format!("{}({}).{}",audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap());
+//     let pipeline_description = match audio_path.extension().unwrap().to_str().unwrap().to_lowercase().as_str(){
+//         "mp3" => format!(
+//            "filesrc location=\"{}\" ! mpegaudioparse ! mpg123audiodec ! decodebin ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! audioresample ! lamemp3enc target=quality quality=0 ! id3v2mux ! filesink location=\"{}\"",
+//            &audio_path.display(),
+//            &rate,
+//            &final_path
+//         ),
+//         "ogg" => format!(
+//            "filesrc location=\"{}\" ! oggdemux ! vorbisdec ! audioconvert ! speed speed={} ! vorbisenc ! oggmux ! filesink location=\"{}\"",
+//            &audio_path.display(),
+//            &rate,
+//            &final_path
+//         ),
+//         "wav" => format!(
+//            "filesrc location=\"{}\" ! wavparse ! audioconvert ! audioresample ! speed speed={} ! audioconvert ! wavenc ! filesink location=\"{}\"",
+//            &audio_path.display(),
+//            &rate,
+//            &final_path
+//         ),
+//         e => return Err(anyhow::anyhow!("Unsupported file type: {}", e))
+//     };
+//     
+//     let pipeline = gst::parse_launch(&pipeline_description)?;
+//     pipeline.set_state(gst::State::Playing)?;
+//     let bus = pipeline.bus().unwrap();
+//     bus.add_signal_watch();
+//         loop {
+//             if bus.pop().is_some_and(|x| x.as_ref().type_().eq(&MessageType::Eos)){
+//                 break;
+//             }
+//         }
+//     pipeline.set_state(gst::State::Null)?;
+//     Ok(())
+// }
+
+fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
+    let final_path = PathBuf::from(format!("{}({}).{}",
+        audio_path.parent().unwrap_or(Path::new("")).join(audio_path.file_stem().ok_or(anyhow!("Couldn't find the file stem for audio file"))?).display(),
+        rate,
+        audio_path.extension().ok_or(anyhow!("Invalid audio file extension"))?.to_str().unwrap()));
+
+    let start = std::time::Instant::now();
     
-    let pipeline = gst::parse_launch(&pipeline_description)?;
-    pipeline.set_state(gst::State::Playing)?;
-    let bus = pipeline.bus().unwrap();
-    bus.add_signal_watch();
-        loop {
-            if bus.pop().is_some_and(|x| x.as_ref().type_().eq(&MessageType::Eos)){
-                break;
+    if !final_path.exists(){
+        match audio_path.extension().unwrap_or(std::ffi::OsStr::new("")).to_str().unwrap(){
+            "ogg" => change_speed_ogg(audio_path, rate)?,
+            "wav" => change_speed_wav(audio_path, rate)?,
+            "mp3" => change_speed_mp3(audio_path, rate)?,
+            _ => {
+                 if change_speed_mp3(audio_path, rate).is_err(){
+                    return Err(anyhow!("Unsupported/unknown file type!"))
+                }
             }
-        }
+        };
+    }
+
+    dbg!(start.elapsed());
     Ok(())
 }
 
@@ -325,6 +352,12 @@ mod test{
     async fn gosu_test(){
         gosu_websocket_listen(&Settings::new()).await.unwrap();
     }
+
+    #[tokio::test]
+    async fn audio_test(){
+        generate_audio(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/1941727 Mrs GREEN APPLE - StaRt (Katagiri Remix)/audio.mp3"), 1.7);
+    }
+
     #[tokio::test]
     async fn metadata_test(){
         read_map_metadata(MapOptions

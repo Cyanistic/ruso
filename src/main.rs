@@ -21,7 +21,7 @@ async fn main() {
         Config::default().with_window(WindowBuilder::new().with_maximizable(true).with_maximizable(true).with_resizable(true)
         .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 600.0)))
     );
-    unsafe { gstreamer::deinit() };
+    // unsafe { gstreamer::deinit() };
 }
 
 fn App(cx: Scope) -> Element {
@@ -537,7 +537,7 @@ fn MapOptionsComponent(cx: Scope) -> Element{
                                 msg.write().text = Some(format!("Error creating map: {}", e));
                                 msg.write().status = Status::Error;
                             }
-                        };
+                        }
                     }else{
                         match change_map_difficulty(&map.read(), &settings.read()){
                             Ok(_) => {
