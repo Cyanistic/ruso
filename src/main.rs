@@ -31,8 +31,10 @@ fn App(cx: Scope) -> Element {
     use_shared_state_provider(cx, || StatusMessage::new());
     let tab = use_shared_state::<Tab>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
+
     cx.render(rsx! {
-            style{ include_str!("css/style.css") }
+            style { include_str!("css/style.css") }
+
             match settings.read().theme{
                 Theme::Light => rsx! {
                     style { include_str!("css/light.css") }
@@ -506,6 +508,13 @@ fn MapOptionsComponent(cx: Scope) -> Element{
                     src: "{root_dir.join(\"assets/nobg.png\").display()}",
                     width: "100%",
                     height: "100%"
+                }
+            }
+        }
+        if !map.read().title.is_empty(){
+            rsx!{
+                h3 {
+                "{map.read().artist} - {map.read().title} [{map.read().difficulty_name}]"
                 }
             }
         }

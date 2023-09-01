@@ -12,6 +12,9 @@ pub struct MapOptions{
     pub map_path: PathBuf,
     pub bpm: usize,
     pub rate: f64,
+    pub title: Box<str>,
+    pub artist: Box<str>,
+    pub difficulty_name: Box<str>,
 }
 
 impl MapOptions{
@@ -24,7 +27,10 @@ impl MapOptions{
             background: None,
             map_path: PathBuf::new(), 
             bpm: 100,
-            rate: 1.0
+            rate: 1.0,
+            title: "".into(),
+            artist: "".into(),
+            difficulty_name: "".into()
         }
     }
 }

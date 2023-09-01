@@ -30,6 +30,9 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
             }
             bg
         },
+        title: map.title.into(),
+        artist: map.artist.into(),
+        difficulty_name: map.difficulty_name.into(),
         ..options
     };
     if settings.ar_lock{
@@ -368,7 +371,10 @@ mod test{
             background: None,
             map_path: PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs"),
             bpm: 100,
-            rate: 1.3
+            rate: 1.3,
+            artist: "".into(),
+            title: "".into(),
+            difficulty_name: "".into()
         }, &Settings::new()).unwrap();
     }
 

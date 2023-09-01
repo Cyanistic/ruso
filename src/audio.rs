@@ -1,12 +1,12 @@
 use std::{path::PathBuf, fs::File, num::NonZeroU32, io::Write};
 use anyhow::Result;
-use id3::{Tag, TagLike, frame::Comment};
+use id3::{Tag, TagLike};
 use mp3lame_encoder::{FlushNoGap, Id3Tag};
 use std::mem::MaybeUninit;
 use vorbis_rs::{VorbisDecoder, VorbisEncoderBuilder};
 
 pub fn change_speed_wav(path: &PathBuf, rate: f64) -> Result<(), hound::Error>{
-    let mut reader = hound::WavReader::open(&path)?;
+    let mut reader = hound::WavReader::open(path)?;
     let sample_rate = reader.spec().sample_rate;
     let channels = reader.spec().channels;
     let spec = hound::WavSpec{
@@ -24,7 +24,7 @@ pub fn change_speed_wav(path: &PathBuf, rate: f64) -> Result<(), hound::Error>{
 }
 
 pub fn change_speed_ogg(path: &PathBuf, rate: f64) -> Result<()>{
-    let mut source_ogg = File::open(&path)?;
+    let mut source_ogg = File::open(path)?;
     // let mut transcoded_ogg = File::create(format!("{}({})", path.display(), rate))?;
     let mut transcoded_ogg = Vec::new();
     let mut decoder = VorbisDecoder::new(&mut source_ogg)?;
@@ -44,8 +44,8 @@ pub fn change_speed_ogg(path: &PathBuf, rate: f64) -> Result<()>{
 
 pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
     let mut mp3_data: Vec<MaybeUninit<u8>> = Vec::new();
-    let mut decoder = minimp3::Decoder::new(File::open(&path).unwrap());
-    let tag = Tag::read_from_path(&path);
+    let mut decoder = minimp3::Decoder::new(File::open(path).unwrap());
+    let tag = Tag::read_from_path(path);
     let mp3_headers = decoder.next_frame()?;
     let mut encoder = mp3lame_encoder::Builder::new().unwrap();
     encoder.set_sample_rate((mp3_headers.sample_rate as f64 * rate) as u32).unwrap();

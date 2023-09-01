@@ -1,0 +1,9 @@
+/* input.slider{ */
+/*   width: 80vw; */
+/*   align-self: center; */
+/* } */
+
+GenericSlider{
+  width: 80vw;
+  align-self: center;
+}
