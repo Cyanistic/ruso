@@ -2371,6 +2371,7 @@ dependencies = [
  "futures-util",
  "hound",
  "id3",
+ "libc",
  "libosu",
  "minimp3",
  "mp3lame-encoder",

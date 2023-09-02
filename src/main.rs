@@ -7,6 +7,7 @@ use futures_util::StreamExt;
 use serde_json::from_str;
 use rfd::FileDialog;
 mod props;
+mod cli;
 use props::*;
 use ruso::*;
 use crate::structs::*;
@@ -17,11 +18,15 @@ async fn main() {
     if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
         gosu_startup(&settings).unwrap();
     }
-    dioxus_desktop::launch_cfg(App,
-        Config::default().with_window(WindowBuilder::new().with_maximizable(true).with_maximizable(true).with_resizable(true)
-        .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 600.0)))
-    );
-    // unsafe { gstreamer::deinit() };
+
+    if std::env::args().len() > 1{
+        cli::run().await.unwrap();
+    }else{
+        dioxus_desktop::launch_cfg(App,
+            Config::default().with_window(WindowBuilder::new().with_maximizable(true).with_maximizable(true).with_resizable(true)
+            .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 600.0)))
+        );
+    }
 }
 
 fn App(cx: Scope) -> Element {
@@ -70,7 +75,7 @@ fn App(cx: Scope) -> Element {
                 Tab::Auto => rsx!{ AutoTab{} },
                 Tab::Manual => rsx!{ ManualTab{} },
                 Tab::Settings => rsx! { SettingsTab{} },
-        }
+            }
     })
 }
 
