@@ -293,16 +293,17 @@ pub async fn gosu_websocket_listen(settings: &Settings) -> Result<()>{
 
 #[cfg(target_os = "linux")]
 pub fn gosu_startup(settings: &Settings) -> Result<Child>{
-    use std::{process::Command, io::IsTerminal};
+    use std::{process::Command, io::{IsTerminal, stderr}};
 
     if settings.gosumemory_path.is_file(){
         if settings.songs_path.is_dir(){
             if std::io::stdin().is_terminal(){
                 eprintln!("gosumemory requires root permissions to read /proc on linux");
+                stderr().flush()?;
 
                 // Spawn a dummy command to get the sudo password prompt out of the way
                 let mut dummy = Command::new("sudo")
-                .arg("echo")
+                .args(["sleep", "0"])
                 .spawn()?;
                 dummy.wait()?;
 
@@ -313,7 +314,6 @@ pub fn gosu_startup(settings: &Settings) -> Result<Child>{
             }else{
                 Command::new("pkexec")
                 .args([settings.gosumemory_path.to_str().unwrap(), "--path", settings.songs_path.to_str().unwrap()])
-                .stdout(std::process::Stdio::null())
                 .spawn().map_err(|e| anyhow::anyhow!("Error starting gosumemory: {}", e))
             }
         }else{

@@ -1,4 +1,4 @@
-use std::{process::exit, path::PathBuf, io::{stdout, IsTerminal, Read, BufReader, BufRead}, time::Duration};
+use std::{process::{exit, Command}, path::PathBuf, io::{stdout, IsTerminal, stderr, Write}, time::Duration};
 
 use anyhow::{Result, anyhow};
 use futures_util::StreamExt;
@@ -7,7 +7,6 @@ use serde_json::Value;
 use tokio_tungstenite::connect_async;
 
 pub async fn run() -> Result<()>{
-
     // Reset the SIGPIPE handler to the default one to allow for proper unix piping
     reset_sigpipe();
 
@@ -65,7 +64,17 @@ pub async fn run() -> Result<()>{
             },
             "-g"| "--gosumemory" => gosu_process = match gosu_startup(&settings){
                 Ok(process) => {
-                    std::thread::sleep(Duration::from_secs(1));
+                    tokio::select!{
+                        _ = poll_gosu(&settings) => (),
+                        _ = tokio::time::sleep(Duration::from_secs(3)) => {
+                            writeln!(stderr(), "No response from {} after 3 seconds, continuing...", settings.websocket_url);
+                            stderr().flush()?;
+                        },
+                    };
+                    // Fix terminal to avoid staircase effect
+                    if let Ok(mut process) = Command::new("stty").args(["opost", "onlcr"]).spawn(){
+                        process.wait()?;
+                    }
                     Some(process)
                 },
                 Err(e) => return Err(anyhow!("Could not start gosumemory: {}", e))
@@ -89,35 +98,40 @@ pub async fn run() -> Result<()>{
             _ => return Err(anyhow!("Invalid command: {}", args[ind]))
         }
     }
+    let mut stderr = stderr().lock();
+
 
     // Attempt to get the path from the gosu websocket url if no path was provided
     if map.map_path == PathBuf::new(){
-        eprintln!("No path specified, attempting to get path from gosu!");
+        writeln!(stderr, "No path specified, attempting to get path from gosu!")?;
         map.map_path = match path_from_gosu(&settings).await{
             Ok(path) => path,
             Err(e) => return Err(anyhow!("Could not connect to gosu: {}", e))
         };
+        writeln!(stderr, "Got path from gosu: {}", map.map_path.display());
     }
 
     // Making the generate_map function generate the path only from map in order to avoid conflicts
     // with paths in cwd and paths that start with the provided osu! songs path.
     settings.songs_path = PathBuf::new();
+    writeln!(stderr, "Generating map...")?;
     generate_map(&map, &settings)?;
-    println!("Map successfully generated!");
 
     // Kill gosumemory if it was started by ruso
     if let Some(mut process) = gosu_process{
-        process.kill().unwrap_or_else(|_| eprintln!("Could not kill spawned gosumemory process"));
+        process.kill().unwrap_or_else(|_| {writeln!(stderr, "Could not kill spawned gosumemory process");});
 
         #[cfg(target_os = "linux")]
         unsafe{
-            libc::kill(process.id() as i32, libc::SIGKILL);
+            libc::kill(process.id() as i32, libc::SIGTERM);
         }
     }
+
+    writeln!(stderr, "Map successfully generated!")?;
     Ok(())
 }
 
-pub fn print_help(){
+fn print_help(){
     const BOLD: &str = "\x1b[1m";
     const UND: &str = "\x1b[4m";
     const RES: &str = "\x1b[0m";
@@ -163,7 +177,7 @@ pub fn print_help(){
     }
 }
 
-pub async fn path_from_gosu(settings: &Settings) -> Result<PathBuf>{
+async fn path_from_gosu(settings: &Settings) -> Result<PathBuf>{
     let (socket, _) = connect_async(&settings.websocket_url).await?;
     let ( _, mut read) = socket.split();
 
@@ -177,6 +191,21 @@ pub async fn path_from_gosu(settings: &Settings) -> Result<PathBuf>{
         },
         None => Err(anyhow!("No response from gosu!"))
     }
+}
+
+async fn poll_gosu(settings: &Settings){
+    loop{
+        let (socket, _) = match connect_async(&settings.websocket_url).await{
+            Ok(k) => k,
+            Err(_) => continue
+        };
+        let ( _, mut read) = socket.split();
+
+            match read.next().await{
+                Some(_) => return,
+                None => continue
+            }
+    };
 }
 
 #[cfg(unix)]
