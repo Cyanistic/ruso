@@ -14,14 +14,13 @@ use crate::structs::*;
 
 #[tokio::main]
 async fn main() {
-    let settings = Settings::new_from_config();
-    if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
-        gosu_startup(&settings).unwrap();
-    }
-
     if std::env::args().len() > 1{
         cli::run().await.unwrap();
     }else{
+        let settings = Settings::new_from_config();
+        if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
+            gosu_startup(&settings).unwrap();
+        }
         dioxus_desktop::launch_cfg(App,
             Config::default().with_window(WindowBuilder::new().with_maximizable(true).with_maximizable(true).with_resizable(true)
             .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 600.0)))

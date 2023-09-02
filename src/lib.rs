@@ -1,6 +1,7 @@
 use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read, BufWriter}, sync::Arc, process, any::Any};
 use anyhow::{Result, anyhow};
 use libosu::{prelude::*, events::Event::Background};
+use std::process::Child;
 // extern crate gstreamer as gst;
 // use gst::{prelude::*, MessageType, Pipeline, ElementFactory, MessageView};
 pub mod structs;
@@ -164,8 +165,6 @@ fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
         audio_path.parent().unwrap_or(Path::new("")).join(audio_path.file_stem().ok_or(anyhow!("Couldn't find the file stem for audio file"))?).display(),
         rate,
         audio_path.extension().ok_or(anyhow!("Invalid audio file extension"))?.to_str().unwrap()));
-
-    let start = std::time::Instant::now();
     
     if !final_path.exists(){
         match audio_path.extension().unwrap_or(std::ffi::OsStr::new("")).to_str().unwrap(){
@@ -180,7 +179,6 @@ fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
         };
     }
 
-    dbg!(start.elapsed());
     Ok(())
 }
 
@@ -294,21 +292,36 @@ pub async fn gosu_websocket_listen(settings: &Settings) -> Result<()>{
 }
 
 #[cfg(target_os = "linux")]
-pub fn gosu_startup(settings: &Settings) -> Result<()>{
-    use std::process::Command;
+pub fn gosu_startup(settings: &Settings) -> Result<Child>{
+    use std::{process::Command, io::IsTerminal};
+
     if settings.gosumemory_path.is_file(){
-        if settings.songs_path.is_dir() {
-            Command::new("pkexec")
-            .args([settings.gosumemory_path.to_str().unwrap(), "--path", settings.songs_path.to_str().unwrap()])
-            .stdout(std::process::Stdio::null())
-            .spawn()?;
+        if settings.songs_path.is_dir(){
+            if std::io::stdin().is_terminal(){
+                eprintln!("gosumemory requires root permissions to read /proc on linux");
+
+                // Spawn a dummy command to get the sudo password prompt out of the way
+                let mut dummy = Command::new("sudo")
+                .arg("echo")
+                .spawn()?;
+                dummy.wait()?;
+
+                // Spawn the actual gosumemory process
+                Command::new("sudo")
+                .args([settings.gosumemory_path.to_str().unwrap(), "--path", settings.songs_path.to_str().unwrap()])
+                .spawn().map_err(|e| anyhow::anyhow!("Error starting gosumemory: {}", e))
+            }else{
+                Command::new("pkexec")
+                .args([settings.gosumemory_path.to_str().unwrap(), "--path", settings.songs_path.to_str().unwrap()])
+                .stdout(std::process::Stdio::null())
+                .spawn().map_err(|e| anyhow::anyhow!("Error starting gosumemory: {}", e))
+            }
         }else{
-            return Err(anyhow::anyhow!("Songs path not found"))
+            Err(anyhow::anyhow!("Songs path not found"))
         }
     }else{
-        return Err(anyhow::anyhow!("gosumemory executable not found"))
+        Err(anyhow::anyhow!("gosumemory executable not found"))
     }
-    Ok(())
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -339,49 +352,3 @@ pub fn write_config(settings: &Settings) -> Result<()>{
     Ok(())
 }
 
-
-#[cfg(test)]
-mod test{
-    use super::*;
-    // #[tokio::test]
-    // async fn test1(){
-    //     generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/991895 Kondo Koji - Slider/Kondo Koji - Slider (NikoSek) [YaHoo!!].osu"), 1.9).await.unwrap();
-    // }
-    // #[tokio::test]
-    // async fn test2(){
-    //     generate_map(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/1869337 Fellowship - Glory Days/Fellowship - Glory Days (EdgyKing) [Selfless Journey].osu"), 3.0).await.unwrap();
-    // }
-    #[tokio::test]
-    async fn gosu_test(){
-        gosu_websocket_listen(&Settings::new()).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn audio_test(){
-        generate_audio(&PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs/1941727 Mrs GREEN APPLE - StaRt (Katagiri Remix)/audio.mp3"), 1.7);
-    }
-
-    #[tokio::test]
-    async fn metadata_test(){
-        read_map_metadata(MapOptions
-            { approach_rate: 5.0,
-            circle_size: 5.0,
-            hp_drain: 5.0,
-            overall_difficulty: 5.0,
-            background: None,
-            map_path: PathBuf::from("/home/cyan/.local/share/osu-wine/osu!/Songs"),
-            bpm: 100,
-            rate: 1.3,
-            artist: "".into(),
-            title: "".into(),
-            difficulty_name: "".into()
-        }, &Settings::new()).unwrap();
-    }
-
-    #[tokio::test]
-    async fn get_bpm(){
-        let map = libosu::beatmap::Beatmap::parse(File::open("/home/cyan/.local/share/osu-wine/osu!/Songs/991895 Kondo Koji - Slider/Kondo Koji - Slider (NikoSek) [YaHoo!! x1.1].osu").unwrap()).unwrap();
-        let bpm = calculate_bpm(&map.timing_points);
-        assert_eq!(bpm, 100);
-    }
-}

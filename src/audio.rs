@@ -74,12 +74,17 @@ pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
     };
 
     if let Ok(tag) = tag{
+        let year: Box<[u8]> = if let Some(year) = tag.year(){
+            year.to_string().as_bytes().into()
+        }else{
+            b"".as_slice().into()
+        };
         encoder.set_id3_tag(Id3Tag{
             album: tag.album().unwrap_or("").as_bytes(),
             artist: tag.artist().unwrap_or("").as_bytes(),
             comment: if let Some(comment) = tag.comments().next() {comment.text.as_bytes()} else {b""},
             title: tag.title().unwrap_or("").as_bytes(),
-            year: b""
+            year: year.as_ref()
         });
     }
 

@@ -1,8 +1,8 @@
-use std::{process::exit, path::PathBuf, io::{stdout, IsTerminal}};
+use std::{process::exit, path::PathBuf, io::{stdout, IsTerminal, Read, BufReader, BufRead}, time::Duration};
 
 use anyhow::{Result, anyhow};
 use futures_util::StreamExt;
-use ruso::{MapOptions, Settings, generate_map};
+use ruso::{MapOptions, Settings, generate_map, gosu_startup};
 use serde_json::Value;
 use tokio_tungstenite::connect_async;
 
@@ -13,27 +13,37 @@ pub async fn run() -> Result<()>{
 
     let args = Vec::from_iter(std::env::args());
     let mut args = args.iter().skip(1).map(AsRef::as_ref).collect::<Vec<&str>>();
-    const AVAILABLE_COMMANDS: [&str; 16] = [
+    const AVAILABLE_COMMANDS: [&str; 18] = [
         "-a", "--approach-rate",
         "-c", "--circle-size",
         "-d", "--hp-drain",
         "-h", "--help",
+        "-g", "--gosumemory",
         "-o", "--overall-difficulty",
         "-p", "--path",
         "-r", "--rate",
         "-V", "--version",
     ];
-    const FLAGS: [&str; 4] = [
-        "-h", "--help",
-        "-V", "--version"
-    ];
 
+    const FLAGS: [&str; 6] = [
+        "-h", "--help",
+        "-V", "--version",
+        "-g", "--gosumemory",
+    ];
+    
+    // Add empty string after argument if the argument is a flag for easier error handling
+    { let mut count: usize = 0;
+        for (ind, val) in args.clone().iter().enumerate(){ 
+            if FLAGS.contains(val){
+                args.insert(ind+count+1, "");
+                count += 1;
+            }
+        }
+    }
     // Check if the provided command args are valid
-    for (key, val) in args.clone().iter().enumerate().step_by(2){
-        if !AVAILABLE_COMMANDS.contains(val){
-            return Err(anyhow!("Invalid command: {}", val));
-        }else if FLAGS.contains(val){
-            args.insert(key+1, "");
+    for arg in args.clone().iter().step_by(2){
+        if !AVAILABLE_COMMANDS.contains(arg){
+            return Err(anyhow!("Invalid command: {}", arg));
         }
     }
 
@@ -43,18 +53,26 @@ pub async fn run() -> Result<()>{
 
     // Iterate over each argument and apply the respective changes to the map
     // Stepping by 2 since args are in the format: [command, value]
-    for (key, val) in args.iter().enumerate().step_by(2){
-        match *val{
-            "-a"| "--approach-rate" => map.approach_rate = args[key+1].parse::<f64>()?,
-            "-c"| "--circle-size" => map.circle_size = args[key+1].parse::<f64>()?,
-            "-d"| "--hp-drain" => map.hp_drain = args[key+1].parse::<f64>()?,
+    let mut gosu_process: Option<std::process::Child> = None;
+    for ind in (0..args.len()).step_by(2){
+        match args[ind]{
+            "-a"| "--approach-rate" => map.approach_rate = args[ind+1].parse::<f64>()?,
+            "-c"| "--circle-size" => map.circle_size = args[ind+1].parse::<f64>()?,
+            "-d"| "--hp-drain" => map.hp_drain = args[ind+1].parse::<f64>()?,
             "-h"| "--help" => {
                 print_help();
                 exit(0);
             },
-            "-o"| "--overall-difficulty" => map.overall_difficulty = args[key+1].parse::<f64>()?,
+            "-g"| "--gosumemory" => gosu_process = match gosu_startup(&settings){
+                Ok(process) => {
+                    std::thread::sleep(Duration::from_secs(1));
+                    Some(process)
+                },
+                Err(e) => return Err(anyhow!("Could not start gosumemory: {}", e))
+            },
+            "-o"| "--overall-difficulty" => map.overall_difficulty = args[ind+1].parse::<f64>()?,
             "-p"| "--path" => {
-                let temp_path: PathBuf = args[key+1].into();
+                let temp_path: PathBuf = args[ind+1].into();
                 if temp_path.exists(){
                     map.map_path = temp_path;
                 }else if settings.songs_path.join(&temp_path).exists(){
@@ -63,12 +81,12 @@ pub async fn run() -> Result<()>{
                     return Err(anyhow!("The provided path: '{}' does not exist", temp_path.display()));
                 }
             },
-            "-r"| "--rate" => map.rate = args[key+1].parse::<f64>()?,
+            "-r"| "--rate" => map.rate = args[ind+1].parse::<f64>()?,
             "-V"| "--version" => {
                 println!("Ruso v{}", env!("CARGO_PKG_VERSION"));
                 exit(0);
             }
-            _ => return Err(anyhow!("Invalid command: {}", val))
+            _ => return Err(anyhow!("Invalid command: {}", args[ind]))
         }
     }
 
@@ -86,6 +104,16 @@ pub async fn run() -> Result<()>{
     settings.songs_path = PathBuf::new();
     generate_map(&map, &settings)?;
     println!("Map successfully generated!");
+
+    // Kill gosumemory if it was started by ruso
+    if let Some(mut process) = gosu_process{
+        process.kill().unwrap_or_else(|_| eprintln!("Could not kill spawned gosumemory process"));
+
+        #[cfg(target_os = "linux")]
+        unsafe{
+            libc::kill(process.id() as i32, libc::SIGKILL);
+        }
+    }
     Ok(())
 }
 
@@ -104,6 +132,8 @@ pub fn print_help(){
         println!("  {}-a, --approach-rate           {}The approach rate of the map. Will remain unchanged if not provided.", BOLD, RES);
         println!("  {}-c, --circle-size             {}The circle size of the map. Will remain unchanged if not provided.", BOLD, RES);
         println!("  {}-d, --hp-drain                {}The hp drain of the map. Will remain unchanged if not provided.", BOLD, RES);
+        println!("  {}-g, --gosumemory              {}Spawn gosumemory as a child process.", BOLD, RES);
+        println!("                                  This will use the paths provided in '{}' as the gosumemory and osu! songs path respectively.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
         println!("  {}-o, --overall-difficulty      {}The overall difficulty of the map. Will remain unchanged if not provided.", BOLD, RES);
         println!("  {}-p, --path                    {}The path to the osu! map.", BOLD, RES);
         println!("                                  This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
@@ -121,6 +151,8 @@ pub fn print_help(){
         println!("  -a, --approach-rate           The approach rate of the map. Will remain unchanged if not provided.");
         println!("  -c, --circle-size             The circle size of the map. Will remain unchanged if not provided.");
         println!("  -d, --hp-drain                The hp drain of the map. Will remain unchanged if not provided.");
+        println!("  -g, --gosumemory              Spawn gosumemory as a child process.");
+        println!("                                This will use the paths provided in '{}' as the gosumemory and osu! songs path respectively.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
         println!("  -o, --overall-difficulty      The overall difficulty of the map. Will remain unchanged if not provided.");
         println!("  -p, --path                    The path to the osu! map.");
         println!("                                This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
@@ -138,10 +170,10 @@ pub async fn path_from_gosu(settings: &Settings) -> Result<PathBuf>{
     match read.next().await{
         Some(message) => {
             let message = message?;
-            let json: Value = serde_json::from_str(message.to_text()?)?;
-            return Ok(PathBuf::from(json["settings"]["folders"]["songs"].as_str().unwrap())
-                .join(json["menu"]["bm"]["path"]["folder"].as_str().unwrap())
-                .join(json["menu"]["bm"]["path"]["file"].as_str().unwrap()));
+            let json_data: Value = serde_json::from_str(message.to_text()?)?;
+            return Ok(PathBuf::from(json_data["settings"]["folders"]["songs"].as_str().unwrap())
+                .join(json_data["menu"]["bm"]["path"]["folder"].as_str().unwrap())
+                .join(json_data["menu"]["bm"]["path"]["file"].as_str().unwrap()));
         },
         None => Err(anyhow!("No response from gosu!"))
     }
