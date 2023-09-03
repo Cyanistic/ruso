@@ -44,7 +44,7 @@ pub fn change_speed_ogg(path: &PathBuf, rate: f64) -> Result<()>{
 
 pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
     let mut mp3_data: Vec<MaybeUninit<u8>> = Vec::new();
-    let mut decoder = minimp3::Decoder::new(File::open(path).unwrap());
+    let mut decoder = minimp3::Decoder::new(File::open(path)?);
     let tag = Tag::read_from_path(path);
     let mp3_headers = decoder.next_frame()?;
     let mut encoder = mp3lame_encoder::Builder::new().unwrap();
@@ -87,7 +87,7 @@ pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
             year: year.as_ref()
         });
     }
-
+    
     let mut encoder = encoder.build().unwrap();
     let len = mp3_headers.data.len();
     let mut input: Vec<i16> = mp3_headers.data;
@@ -124,5 +124,6 @@ pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
         std::mem::transmute(mp3_data)
     };
     File::create(format!("{}({}).mp3", path.parent().unwrap().join(path.file_stem().unwrap()).display(), rate))?.write_all(mp3_data.as_slice())?;
+
     Ok(())
 }

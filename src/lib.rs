@@ -2,15 +2,15 @@ use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind,
 use anyhow::{Result, anyhow};
 use libosu::{prelude::*, events::Event::Background};
 use std::process::Child;
-// extern crate gstreamer as gst;
-// use gst::{prelude::*, MessageType, Pipeline, ElementFactory, MessageView};
-pub mod structs;
-pub use structs::{MapOptions, Settings};
 use tokio_tungstenite::connect_async;
 use tokio::{io::AsyncWriteExt, sync::Mutex};
 use futures_util::StreamExt;
 use serde_json::from_str;
-mod audio;
+pub mod structs;
+pub mod audio;
+pub mod props;
+pub mod cli;
+pub use structs::{MapOptions, Settings};
 use audio::*;
 
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
@@ -314,6 +314,9 @@ pub fn gosu_startup(settings: &Settings) -> Result<Child>{
             }else{
                 Command::new("pkexec")
                 .args([settings.gosumemory_path.to_str().unwrap(), "--path", settings.songs_path.to_str().unwrap()])
+                .stderr(process::Stdio::piped())
+                .stdout(process::Stdio::piped())
+                .stdin(process::Stdio::piped())
                 .spawn().map_err(|e| anyhow::anyhow!("Error starting gosumemory: {}", e))
             }
         }else{

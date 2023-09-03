@@ -9,8 +9,7 @@ use rfd::FileDialog;
 mod props;
 mod cli;
 use props::*;
-use ruso::*;
-use crate::structs::*;
+use ruso::{structs::*, *};
 
 #[tokio::main]
 async fn main() {
