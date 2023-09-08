@@ -548,10 +548,13 @@ fn MapOptionsComponent(cx: Scope) -> Element{
                                     }
                                 },
                     Mode::Mania => rsx!{
-                                    img {
-                                        src: r#"{assets.join("mania.png").display()}"#,
+                                    svg {
+                                        fill: "black",
+                                        img{
                                         width: "100%",
-                                        height: "100%"
+                                        height: "100%",
+                                        src: r#"{assets.join("mania.svg").display()}"#
+                                        }
                                     }
                                 }
                 }

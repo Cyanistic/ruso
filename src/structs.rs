@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use std::path::PathBuf;
+use std::{path::PathBuf, io::{ErrorKind, Write}, fs::File};
 use libosu::data::Mode;
 use serde::{Serialize, Deserialize};
 
@@ -75,19 +75,30 @@ impl Settings{
         }
     }
 
+    /// Attempt to create a settings struct from an existing 'settings.json' file
     pub fn new_from_config() -> Self{
         let config_file = dirs::config_dir().unwrap().join("ruso").join("settings.json");
-        if config_file.exists(){
-            let config_data = std::fs::read_to_string(config_file).unwrap();
-            match serde_json::from_str(&config_data){
-                Ok(k) => k,
-                Err(e) => {
-                    eprintln!("Error parsing config file: {}, using default settings", e);
-                    Self::new()
+        let config_data = match std::fs::read_to_string(&config_file){
+            Ok(k) => k,
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+                // Config file does not exist, create it
+                let mut config_file = File::create(&config_file).expect("Could not find or create settings.json");
+                let default_config = serde_json::to_string_pretty(&Self::new()).unwrap();
+                // Use default config if a configuration could not be created
+                if let Err(e) = config_file.write_all(default_config.as_bytes()){
+                    eprintln!("Could not create config file: {}", e);
+                    return Self::new()
                 }
+                return Self::new_from_config()
+            },
+            Err(e) => panic!("Error reading config file: {}", e)
+        };
+        match serde_json::from_str(&config_data){
+            Ok(k) => k,
+            Err(e) => {
+                eprintln!("Error parsing config file: {}, using default settings", e);
+                Self::new()
             }
-        }else {
-            Self::new()
         }
     }
 }
