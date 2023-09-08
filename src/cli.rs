@@ -51,6 +51,12 @@ pub async fn run() -> Result<()>{
     //Create a new map and settings instance
     let mut map = MapOptions::new();
     let mut settings = Settings::new_from_config();
+    // Set all locks to false to allow user to change them
+    settings.ar_lock = false;
+    settings.cs_lock = false;
+    settings.hp_lock = false;
+    settings.od_lock = false;
+
     let mut bpm: Option<usize> = None;
 
     // Iterate over each argument and apply the respective changes to the map
@@ -58,10 +64,19 @@ pub async fn run() -> Result<()>{
     let mut gosu_process: Option<std::process::Child> = None;
     for ind in (0..args.len()).step_by(2){
         match args[ind]{
-            "-a"| "--approach-rate" => map.approach_rate = args[ind+1].parse::<f64>()?,
+            "-a"| "--approach-rate" => {
+                map.approach_rate = args[ind+1].parse::<f64>()?;
+                settings.ar_lock = true;
+            },
             "-b"| "--bpm" => bpm = Some(args[ind+1].parse::<usize>()?),
-            "-c"| "--circle-size" => map.circle_size = args[ind+1].parse::<f64>()?,
-            "-d"| "--hp-drain" => map.hp_drain = args[ind+1].parse::<f64>()?,
+            "-c"| "--circle-size" => {
+                map.circle_size = args[ind+1].parse::<f64>()?;
+                settings.cs_lock = true;
+            },
+            "-d"| "--hp-drain" => {
+                map.hp_drain = args[ind+1].parse::<f64>()?;
+                settings.hp_lock = true;
+            },
             "-h"| "--help" => {
                 print_help();
                 exit(0);
@@ -83,7 +98,10 @@ pub async fn run() -> Result<()>{
                 },
                 Err(e) => return Err(anyhow!("Could not start gosumemory: {}", e))
             },
-            "-o"| "--overall-difficulty" => map.overall_difficulty = args[ind+1].parse::<f64>()?,
+            "-o"| "--overall-difficulty" => {
+                map.overall_difficulty = args[ind+1].parse::<f64>()?;
+                settings.od_lock = true;
+            },
             "-p"| "--path" => {
                 let temp_path: PathBuf = args[ind+1].into();
                 if temp_path.exists(){
@@ -126,7 +144,7 @@ pub async fn run() -> Result<()>{
 
     // Get metadata for the map and set its rate based on
     // bpm if it was provided
-    map = read_map_metadata(map, &Settings::new())?;
+    map = read_map_metadata(map, &settings)?;
     if let Some(bpm) = bpm{
         map.rate = round_dec(bpm as f64/map.bpm as f64, 2);
     }
@@ -136,6 +154,7 @@ pub async fn run() -> Result<()>{
     settings.songs_path = PathBuf::new();
     writeln!(stderr(), "Generating map...")?;
     generate_map(&map, &settings)?;
+
     // Fix terminal carriage return
     if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
         process.wait()?;
