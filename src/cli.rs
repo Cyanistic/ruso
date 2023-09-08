@@ -2,7 +2,7 @@ use std::{process::{exit, Command}, path::PathBuf, io::{stdout, IsTerminal, stde
 
 use anyhow::{Result, anyhow};
 use futures_util::StreamExt;
-use crate::{MapOptions, Settings, generate_map, gosu_startup};
+use crate::{MapOptions, Settings, generate_map, gosu_startup, read_map_metadata, round_dec, calculate_bpm};
 use serde_json::Value;
 use tokio_tungstenite::connect_async;
 
@@ -12,8 +12,9 @@ pub async fn run() -> Result<()>{
 
     let args = Vec::from_iter(std::env::args());
     let mut args = args.iter().skip(1).map(AsRef::as_ref).collect::<Vec<&str>>();
-    const AVAILABLE_COMMANDS: [&str; 18] = [
+    const AVAILABLE_COMMANDS: [&str; 20] = [
         "-a", "--approach-rate",
+        "-b", "--bpm",
         "-c", "--circle-size",
         "-d", "--hp-drain",
         "-h", "--help",
@@ -39,6 +40,7 @@ pub async fn run() -> Result<()>{
             }
         }
     }
+
     // Check if the provided command args are valid
     for arg in args.clone().iter().step_by(2){
         if !AVAILABLE_COMMANDS.contains(arg){
@@ -49,6 +51,7 @@ pub async fn run() -> Result<()>{
     //Create a new map and settings instance
     let mut map = MapOptions::new();
     let mut settings = Settings::new_from_config();
+    let mut bpm: Option<usize> = None;
 
     // Iterate over each argument and apply the respective changes to the map
     // Stepping by 2 since args are in the format: [command, value]
@@ -56,6 +59,7 @@ pub async fn run() -> Result<()>{
     for ind in (0..args.len()).step_by(2){
         match args[ind]{
             "-a"| "--approach-rate" => map.approach_rate = args[ind+1].parse::<f64>()?,
+            "-b"| "--bpm" => bpm = Some(args[ind+1].parse::<usize>()?),
             "-c"| "--circle-size" => map.circle_size = args[ind+1].parse::<f64>()?,
             "-d"| "--hp-drain" => map.hp_drain = args[ind+1].parse::<f64>()?,
             "-h"| "--help" => {
@@ -120,12 +124,18 @@ pub async fn run() -> Result<()>{
         }
     }
 
+    // Get metadata for the map and set its rate based on
+    // bpm if it was provided
+    map = read_map_metadata(map, &Settings::new())?;
+    if let Some(bpm) = bpm{
+        map.rate = round_dec(bpm as f64/map.bpm as f64, 2);
+    }
+
     // Making the generate_map function generate the path only from map in order to avoid conflicts
     // with paths in cwd and paths that start with the provided osu! songs path.
     settings.songs_path = PathBuf::new();
     writeln!(stderr(), "Generating map...")?;
     generate_map(&map, &settings)?;
-
     // Fix terminal carriage return
     if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
         process.wait()?;
@@ -148,6 +158,7 @@ fn print_help(){
         println!("  {}-h, --help                    {}Print the help information and exit.", BOLD, RES);
         println!("  {}-V, --version                 {}Print version and exit.", BOLD, RES);
         println!("  {}-a, --approach-rate           {}The approach rate of the map. Will remain unchanged if not provided.", BOLD, RES);
+        println!("  {}-b, --bpm                     {}The new bpm of the map. This will override --rate if provided.", BOLD, RES);
         println!("  {}-c, --circle-size             {}The circle size of the map. Will remain unchanged if not provided.", BOLD, RES);
         println!("  {}-d, --hp-drain                {}The hp drain of the map. Will remain unchanged if not provided.", BOLD, RES);
         println!("  {}-g, --gosumemory              {}Spawn gosumemory as a child process.", BOLD, RES);
@@ -157,7 +168,7 @@ fn print_help(){
         println!("                                  This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
         println!("                                  This is inferred, and the former will take precedence over the latter.");
         println!("                                  If this is not provided, ruso will attempt to connect to a running gosumemory instance with the websocket url provided in '{}'.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("  {}-r, --rate                    {}The playback rate (or speed) of the map. This will speed up the .osu file and the corresponding audio file.", BOLD, RES);
+        println!("  {}-r, --rate                    {}The playback rate (or speed) of the map.", BOLD, RES);
         println!("                                  This will speed up the .osu file and the corresponding audio file.");
     }else{
         println!("Generates osu! maps based on given args.");
@@ -167,6 +178,7 @@ fn print_help(){
         println!("  -h, --help                    Print the help information and exit.");
         println!("  -V, --version                 Print version and exit.");
         println!("  -a, --approach-rate           The approach rate of the map. Will remain unchanged if not provided.");
+        println!("  -b, --bpm                     The new bpm of the map. This will override --rate if provided.");
         println!("  -c, --circle-size             The circle size of the map. Will remain unchanged if not provided.");
         println!("  -d, --hp-drain                The hp drain of the map. Will remain unchanged if not provided.");
         println!("  -g, --gosumemory              Spawn gosumemory as a child process.");
@@ -176,7 +188,7 @@ fn print_help(){
         println!("                                This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
         println!("                                This is inferred, and the former will take precedence over the latter.");
         println!("                                If this is not provided, ruso will attempt to connect to a running gosumemory instance with the websocket url provided in '{}'.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("  -r, --rate                    The playback rate (or speed) of the map. This will speed up the .osu file and the corresponding audio file.");
+        println!("  -r, --rate                    The playback rate (or speed) of the map.");
         println!("                                This will speed up the .osu file and the corresponding audio file.");
     }
 }
