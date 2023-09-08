@@ -13,7 +13,7 @@ pub struct MapOptions{
     pub difficulty_name: Box<str>,
     pub hp_drain: f64,
     pub map_path: PathBuf,
-    pub mode: libosu::data::Mode,
+    pub mode: Mode,
     pub overall_difficulty: f64,
     pub rate: f64,
     pub stars: f64,
@@ -84,6 +84,7 @@ impl Settings{
                 // Config file does not exist, create it
                 let mut config_file = File::create(&config_file).expect("Could not find or create settings.json");
                 let default_config = serde_json::to_string_pretty(&Self::new()).unwrap();
+
                 // Use default config if a configuration could not be created
                 if let Err(e) = config_file.write_all(default_config.as_bytes()){
                     eprintln!("Could not create config file: {}", e);

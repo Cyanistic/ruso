@@ -336,7 +336,7 @@ pub fn gosu_startup(settings: &Settings) -> Result<Child>{
             Err(anyhow::anyhow!("Songs path not found"))
         }
     }else{
-        Err(anyhow::anyhow!("gosumemory executable not found.\nMake sure that you set gosumemory_path in {}", dirs::config_dir().unwrap().join("ruso").join("settings.json").display()))
+        Err(anyhow::anyhow!("gosumemory executable not found.\nMake sure that you set \"gosumemory_path\" in {}", dirs::config_dir().unwrap().join("ruso").join("settings.json").display()))
     }
 }
 

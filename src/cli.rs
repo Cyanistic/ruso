@@ -2,10 +2,11 @@ use std::{process::{exit, Command}, path::PathBuf, io::{stdout, IsTerminal, stde
 
 use anyhow::{Result, anyhow};
 use futures_util::StreamExt;
-use crate::{MapOptions, Settings, generate_map, gosu_startup, read_map_metadata, round_dec, calculate_bpm};
+use crate::{MapOptions, Settings, generate_map, gosu_startup, read_map_metadata, round_dec};
 use serde_json::Value;
 use tokio_tungstenite::connect_async;
 
+/// Entry point for cli
 pub async fn run() -> Result<()>{
     // Reset the SIGPIPE handler to the default one to allow for proper unix piping
     reset_sigpipe();
@@ -51,6 +52,7 @@ pub async fn run() -> Result<()>{
     //Create a new map and settings instance
     let mut map = MapOptions::new();
     let mut settings = Settings::new_from_config();
+    
     // Set all locks to false to allow user to change them
     settings.ar_lock = false;
     settings.cs_lock = false;
@@ -85,11 +87,12 @@ pub async fn run() -> Result<()>{
                 Ok(process) => {
                     tokio::select!{
                         _ = poll_gosu(&settings) => (),
-                        _ = tokio::time::sleep(Duration::from_secs(3)) => {
-                            writeln!(stderr(), "No response from {} after 3 seconds, continuing...", settings.websocket_url);
+                        _ = tokio::time::sleep(Duration::from_secs(5)) => {
+                            writeln!(stderr(), "No response from {} after 5 seconds, continuing...", settings.websocket_url)?;
                             stderr().flush()?;
                         },
                     };
+
                     // Fix terminal to avoid staircase effect
                     if let Ok(mut process) = Command::new("stty").args(["opost", "onlcr"]).spawn(){
                         process.wait()?;

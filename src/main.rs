@@ -13,9 +13,9 @@ use props::*;
 use ruso::{structs::*, *};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()>{
     if std::env::args().len() > 1{
-        cli::run().await.unwrap();
+        cli::run().await?
     }else{
         let settings = Settings::new_from_config();
         if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
@@ -26,6 +26,7 @@ async fn main() {
             .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 600.0)))
         );
     }
+    Ok(())
 }
 
 fn App(cx: Scope) -> Element {
@@ -487,6 +488,20 @@ fn MapOptionsComponent(cx: Scope) -> Element{
     let msg = use_shared_state::<StatusMessage>(cx)?;
     let assets = &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
 
+    // Using css filters for the respective star range colors since I don't want to color the image
+    // manually
+    let css_filter = use_memo(cx, &(map.read().stars), |(stars)|{
+        match stars{
+            _ if stars < 2.0 => "invert(69%) sepia(33%) saturate(2985%) hue-rotate(175deg) brightness(102%) contrast(101%)",
+            _ if stars < 2.7 => "invert(76%) sepia(69%) saturate(421%) hue-rotate(50deg) brightness(98%) contrast(111%)",
+            _ if stars < 4.0 => "invert(90%) sepia(39%) saturate(654%) hue-rotate(357deg) brightness(96%) contrast(100%)",
+            _ if stars < 5.3 => "invert(72%) sepia(61%) saturate(7424%) hue-rotate(320deg) brightness(101%) contrast(101%)",
+            _ if stars < 6.5 => "invert(51%) sepia(35%) saturate(6862%) hue-rotate(278deg) brightness(82%) contrast(87%)",
+            _ if stars < 7.5 => "invert(40%) sepia(27%) saturate(3352%) hue-rotate(220deg) brightness(91%) contrast(90%)",
+            _ => "grayscale(100%)"
+        }
+    });
+
     cx.render(rsx!{
         if let Some(bg) = &map.read().background{
             if settings.read().songs_path.join(bg).exists(){
@@ -519,44 +534,45 @@ fn MapOptionsComponent(cx: Scope) -> Element{
             if !map.read().title.is_empty(){
                 rsx!{
                     h3 {
-                    "{map.read().artist} - {map.read().title} [{map.read().difficulty_name}]"
+                        "{map.read().artist} - {map.read().title} [{map.read().difficulty_name}]"
+                        div{
+                            "{map.read().stars} "
+                            match map.read().mode{
+                                Mode::Osu => rsx!{
+                                                img {
+                                                    src: r#"{assets.join("standard.png").display()}"#,
+                                                    width: "32px",
+                                                    height: "32px",
+                                                    style: "filter: {css_filter}"
+                                                }
+                                            },
+                                Mode::Taiko => rsx!{
+                                                img {
+                                                    src: r#"{assets.join("taiko.png").display()}"#,
+                                                    width: "32px",
+                                                    height: "32px",
+                                                    style: "filter: {css_filter}"
+                                                }
+                                            },
+                                Mode::Catch => rsx!{
+                                                img {
+                                                    src: r#"{assets.join("catch.png").display()}"#,
+                                                    width: "32px",
+                                                    height: "32px",
+                                                    style: "filter: {css_filter}"
+                                                }
+                                            },
+                                Mode::Mania => rsx!{
+                                                img {
+                                                    src: r#"{assets.join("mania.png").display()}"#,
+                                                    width: "32px",
+                                                    height: "32px",
+                                                    style: "filter: {css_filter}"
+                                                }
+                                            }
+                            }
+                        }
                     }
-                }
-            }
-            div{
-                "Stars {map.read().stars}"
-                match map.read().mode{
-                    Mode::Osu => rsx!{
-                                    img {
-                                        src: r#"{assets.join("standard.png").display()}"#,
-                                        width: "20px",
-                                        height: "20px"
-                                    }
-                                },
-                    Mode::Taiko => rsx!{
-                                    img {
-                                        src: r#"{assets.join("taiko.png").display()}"#,
-                                        width: "100%",
-                                        height: "100%"
-                                    }
-                                },
-                    Mode::Catch => rsx!{
-                                    img {
-                                        src: r#"{assets.join("catch.png").display()}"#,
-                                        width: "100%",
-                                        height: "100%"
-                                    }
-                                },
-                    Mode::Mania => rsx!{
-                                    svg {
-                                        fill: "black",
-                                        img{
-                                        width: "100%",
-                                        height: "100%",
-                                        src: r#"{assets.join("mania.svg").display()}"#
-                                        }
-                                    }
-                                }
                 }
             }
         }
