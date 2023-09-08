@@ -1536,6 +1536,7 @@ dependencies = [
  "num-traits",
  "ordered-float 3.9.1",
  "regex",
+ "rosu-pp 0.8.0",
  "static_assertions",
  "thiserror",
 ]
@@ -2360,6 +2361,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rosu-pp"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "238725936123d4c42c3a4492397d02614798de0881008e7377d78d5db7e0e042"
+
+[[package]]
+name = "rosu-pp"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be9e281b71d3797817a1e6615dd8fb081dd61359b4c41d08792cc7c3c1c13b4e"
+
+[[package]]
 name = "ruso"
 version = "0.1.0"
 dependencies = [
@@ -2376,6 +2389,7 @@ dependencies = [
  "minimp3",
  "mp3lame-encoder",
  "rfd",
+ "rosu-pp 0.9.5",
  "serde",
  "serde_json",
  "tokio",

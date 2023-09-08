@@ -1,36 +1,41 @@
 use dioxus::prelude::*;
 use std::path::PathBuf;
+use libosu::data::Mode;
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Debug, Props, PartialEq)]
 pub struct MapOptions{
     pub approach_rate: f64,
-    pub circle_size: f64,
-    pub hp_drain: f64,
-    pub overall_difficulty: f64,
-    pub background: Option<PathBuf>,
-    pub map_path: PathBuf,
-    pub bpm: usize,
-    pub rate: f64,
-    pub title: Box<str>,
     pub artist: Box<str>,
+    pub background: Option<PathBuf>,
+    pub bpm: usize,
+    pub circle_size: f64,
     pub difficulty_name: Box<str>,
+    pub hp_drain: f64,
+    pub map_path: PathBuf,
+    pub mode: libosu::data::Mode,
+    pub overall_difficulty: f64,
+    pub rate: f64,
+    pub stars: f64,
+    pub title: Box<str>,
 }
 
 impl MapOptions{
     pub fn new() -> Self{
         MapOptions { 
             approach_rate: 5.0,
-            circle_size: 5.0,
-            hp_drain: 5.0,
-            overall_difficulty: 5.0,
-            background: None,
-            map_path: PathBuf::new(), 
-            bpm: 100,
-            rate: 1.0,
-            title: "".into(),
             artist: "".into(),
-            difficulty_name: "".into()
+            background: None,
+            bpm: 100,
+            circle_size: 5.0,
+            difficulty_name: "".into(),
+            hp_drain: 5.0,
+            map_path: PathBuf::new(), 
+            mode: Mode::Osu,
+            overall_difficulty: 5.0,
+            rate: 1.0,
+            stars: 0.0,
+            title: "".into(),
         }
     }
 }
@@ -44,14 +49,14 @@ impl Default for MapOptions{
 
 #[derive(Debug, Props, PartialEq, Serialize, Deserialize)]
 pub struct Settings{
-    pub theme: Theme,
     pub ar_lock: bool,
     pub cs_lock: bool,
+    pub gosumemory_path: PathBuf,
+    pub gosumemory_startup: bool,
     pub hp_lock: bool,
     pub od_lock: bool,
     pub songs_path: PathBuf,
-    pub gosumemory_path: PathBuf,
-    pub gosumemory_startup: bool,
+    pub theme: Theme,
     pub websocket_url: String,
 }
 

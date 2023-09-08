@@ -1,6 +1,7 @@
-use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read, BufWriter}, sync::Arc, process, any::Any};
+use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read, BufWriter, BufReader}, sync::Arc, process, any::Any};
 use anyhow::{Result, anyhow};
 use libosu::{prelude::*, events::Event::Background};
+use rosu_pp::BeatmapExt;
 use std::process::Child;
 use tokio_tungstenite::connect_async;
 use tokio::{io::AsyncWriteExt, sync::Mutex};
@@ -15,7 +16,8 @@ use audio::*;
 
 /// Reads the data of a .osu map file up to the timing points and returns it as a MapOptions struct
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
-    let map = libosu::beatmap::Beatmap::parse(File::open(settings.songs_path.join(&options.map_path))?)?;
+    let map = libosu::beatmap::Beatmap::parse(BufReader::new(File::open(settings.songs_path.join(&options.map_path))?))?;
+    let stars = rosu_pp::Beatmap::from_path(settings.songs_path.join(&options.map_path))?.stars().calculate().stars();
     let mut new_options = MapOptions{
         approach_rate: map.difficulty.approach_rate as f64,
         overall_difficulty: map.difficulty.overall_difficulty as f64,
@@ -32,6 +34,8 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
             }
             bg
         },
+        mode: map.mode,
+        stars: round_dec(stars, 2),
         title: map.title.into(),
         artist: map.artist.into(),
         difficulty_name: map.difficulty_name.into(),

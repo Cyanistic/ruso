@@ -6,6 +6,7 @@ use tokio_tungstenite::connect_async;
 use futures_util::StreamExt;
 use serde_json::from_str;
 use rfd::FileDialog;
+use libosu::data::Mode;
 mod props;
 mod cli;
 use props::*;
@@ -484,7 +485,7 @@ fn MapOptionsComponent(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
-    let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let assets = &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
 
     cx.render(rsx!{
         if let Some(bg) = &map.read().background{
@@ -499,7 +500,7 @@ fn MapOptionsComponent(cx: Scope) -> Element{
             }else{
                 rsx!{
                     img {
-                        src: "{root_dir.join(\"assets/nobg.png\").display()}",
+                        src: "{assets.join(\"nobg.png\").display()}",
                         width: "100%",
                         height: "100%"
                     }
@@ -508,16 +509,51 @@ fn MapOptionsComponent(cx: Scope) -> Element{
         }else{
             rsx!{
                 img {
-                    src: "{root_dir.join(\"assets/nobg.png\").display()}",
+                    src: "{assets.join(\"nobg.png\").display()}",
                     width: "100%",
                     height: "100%"
                 }
             }
         }
-        if !map.read().title.is_empty(){
-            rsx!{
-                h3 {
-                "{map.read().artist} - {map.read().title} [{map.read().difficulty_name}]"
+        div{
+            if !map.read().title.is_empty(){
+                rsx!{
+                    h3 {
+                    "{map.read().artist} - {map.read().title} [{map.read().difficulty_name}]"
+                    }
+                }
+            }
+            div{
+                "Stars {map.read().stars}"
+                match map.read().mode{
+                    Mode::Osu => rsx!{
+                                    img {
+                                        src: r#"{assets.join("standard.png").display()}"#,
+                                        width: "20px",
+                                        height: "20px"
+                                    }
+                                },
+                    Mode::Taiko => rsx!{
+                                    img {
+                                        src: r#"{assets.join("taiko.png").display()}"#,
+                                        width: "100%",
+                                        height: "100%"
+                                    }
+                                },
+                    Mode::Catch => rsx!{
+                                    img {
+                                        src: r#"{assets.join("catch.png").display()}"#,
+                                        width: "100%",
+                                        height: "100%"
+                                    }
+                                },
+                    Mode::Mania => rsx!{
+                                    img {
+                                        src: r#"{assets.join("mania.png").display()}"#,
+                                        width: "100%",
+                                        height: "100%"
+                                    }
+                                }
                 }
             }
         }
