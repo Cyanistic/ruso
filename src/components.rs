@@ -196,7 +196,10 @@ pub fn SettingsTab(cx: Scope) -> Element{
     let placeholder_songs_path = "/home/user/.local/share/osu-wine/osu!/Songs";
 
     cx.render(rsx!{
-        h1 { "Settings" }
+        h1 {
+            style: "text-align: center;",
+            "Settings"
+        }
         div {
             title: "Settings",
             "Theme: "
@@ -383,7 +386,10 @@ pub fn AutoTab(cx: Scope) -> Element{
         }
     });
     cx.render(rsx!{
-        h1 { "Auto" }
+        h1 {
+            style: "text-align: center;",
+            "Auto"
+        }
         MapOptionsComponent{}
     })
 }
@@ -429,6 +435,14 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
     let assets = &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
+
+    // Determine status message color
+    let status_color = *use_memo(cx, &(msg.read().status), |status|{
+        match status{
+            Status::Success => "#87E37D",
+            Status::Error => "#FF6B6B"
+        }
+    });
 
     // Determine image path for background image
     let bg_path = use_memo(cx, &(map.read().background), |bg|{
@@ -492,53 +506,7 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
                             src: "{mode_img.display()}",
                             width: "24px",
                             height: "24px",
-                            style: "filter: {css_filter}; margin-bottom: -8px;"
-                        }
-                    }
-                }
-            }
-        }
-        div{
-            if !map.read().title.is_empty(){
-                rsx!{
-                    h3 {
-                        "{map.read().artist} - {map.read().title} [{map.read().difficulty_name}]"
-                        div{
-                            "{map.read().stars} "
-                            match map.read().mode{
-                                Mode::Osu => rsx!{
-                                                img {
-                                                    src: r#"{assets.join("standard.png").display()}"#,
-                                                    width: "32px",
-                                                    height: "32px",
-                                                    style: "filter: {css_filter}"
-                                                }
-                                            },
-                                Mode::Taiko => rsx!{
-                                                img {
-                                                    src: r#"{assets.join("taiko.png").display()}"#,
-                                                    width: "32px",
-                                                    height: "32px",
-                                                    style: "filter: {css_filter}"
-                                                }
-                                            },
-                                Mode::Catch => rsx!{
-                                                img {
-                                                    src: r#"{assets.join("catch.png").display()}"#,
-                                                    width: "32px",
-                                                    height: "32px",
-                                                    style: "filter: {css_filter}"
-                                                }
-                                            },
-                                Mode::Mania => rsx!{
-                                                img {
-                                                    src: r#"{assets.join("mania.png").display()}"#,
-                                                    width: "32px",
-                                                    height: "32px",
-                                                    style: "filter: {css_filter}"
-                                                }
-                                            }
-                            }
+                            style: "filter: {css_filter}; margin-bottom: -6px;"
                         }
                     }
                 }
@@ -632,7 +600,16 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
             title: "Messages",
             p {
                 if let Some(msg) = &msg.read().text{
-                    rsx! {"{msg}"}
+                    rsx! {
+                        div{
+                            class: "status-message",
+                            style: "background-color: {status_color};",
+                            p{
+                                style: "text-align: center;",
+                                "{msg}"
+                            }
+                        }
+                    }
                 }
             }
         }

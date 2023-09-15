@@ -1,6 +1,11 @@
-/* body{ */
-/*   margin: 0; */
-/* } */
+body{
+  font-weight: bold;
+}
+
+h1, h2{
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
 
 div.slider-container{
   display: flex;
@@ -25,12 +30,28 @@ button.tab-button{
 }
 
 div.button-container{
+  padding-top: 10px;
   display: flex;
-  justify-content: center;
+  height: 20vh;
+  min-width: 10px;
+  max-height: 50px;
 }
 
 button.create-button{
-  flex-grow: 2;
+  flex: 2;
+  border-radius: 10px;
+}
+
+button.reset-button{
+  flex: 1;
+  border-radius: 10px;
+}
+
+div.status-message{
+  background-color: rgba(0,0,0,0.6);
+  border-radius: 20px;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
 div.map-image{
@@ -85,5 +106,3 @@ div.map-image{
   bottom: 8px;
   right: 16px;
 }
-
-

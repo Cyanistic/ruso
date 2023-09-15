@@ -131,7 +131,7 @@ impl Default for StatusMessage{
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Status{
     Success,
     Error
