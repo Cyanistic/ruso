@@ -72,15 +72,19 @@ fn App(cx: Scope) -> Element {
                 }
             }
             div {
+                class: "tab-container",
                 button{
+                    class: "tab-button",
                     onclick: move |_| *tab.write() = Tab::Auto,
                     "Auto Select"
                 }
                 button{
+                    class: "tab-button",
                     onclick: move |_| *tab.write() = Tab::Manual,
                     "Manual Select"
                 }
                 button{
+                    class: "tab-button",
                     onclick: move |_| *tab.write() = Tab::Settings,
                     "Settings"
                 }

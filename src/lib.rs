@@ -114,7 +114,6 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
         if let TimingPointKind::Uninherited(point) = &mut point.kind{
             point.mpb /= rate;
         }
-    
     }
 
     let new_path = path.parent().unwrap().join(path.file_stem().unwrap());

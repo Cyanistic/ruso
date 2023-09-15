@@ -1,9 +1,89 @@
-/* input.slider{ */
-/*   width: 80vw; */
-/*   align-self: center; */
+/* body{ */
+/*   margin: 0; */
 /* } */
 
-GenericSlider{
-  width: 80vw;
+div.slider-container{
+  display: flex;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+input.slider{
+  flex-basis: 100%;
   align-self: center;
 }
+
+div.tab-container{
+  display: flex;
+  justify-content: center;
+}
+
+button.tab-button{
+  flex-grow: 1;
+}
+
+div.button-container{
+  display: flex;
+  justify-content: center;
+}
+
+button.create-button{
+  flex-grow: 2;
+}
+
+div.map-image{
+  width: 100vw;
+  height: 25vh;
+  background-size: cover;
+  background-position: center;
+  margin-left: -8px;
+  position: relative;
+  text-align: center;
+}
+
+.title{
+  text-align: center;
+}
+
+.map-title,.map-artist,.map-difficulty,.map-stars{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+  color: white;
+}
+
+.map-title {
+  position: absolute;
+  bottom: 24px;
+  left: 16px;
+  font-size: 24px;
+}
+
+.map-artist {
+  position: absolute;
+  bottom: 8px;
+  left: 16px;
+}
+
+.map-difficulty{
+  background-color: rgba(0,0,0,0.6);
+  border-radius: 20px;
+  padding: 10px;
+  position: absolute;
+  top: 8px;
+  right: 16px;
+}
+
+.map-stars{
+  background-color: rgba(0,0,0,0.6);
+  border-radius: 20px;
+  padding: 10px;
+  position: absolute;
+  bottom: 8px;
+  right: 16px;
+}
+
+

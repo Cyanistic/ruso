@@ -11,6 +11,7 @@ pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
     let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     cx.render(rsx! {
         div {
+            class: "slider-container",
             title: "{cx.props.name}",
             "{cx.props.acronym}"
             input {
@@ -95,6 +96,7 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
     
     cx.render(rsx! {
         div {
+            class: "slider-container",
             title: "Rate",
             "Rate"
             input {
@@ -147,8 +149,10 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
                     cx.props.on_event.call(round_dec(temp_val, 2));
                 },
             }
+        }
+            "Old BPM: {bpm}"
             br {}
-            "BPM"
+            "New BPM: "
             input { 
                 r#type: "number",
                 min: 0,
@@ -172,7 +176,6 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
                     value.set(new_rate);
                     cx.props.on_event.call(new_rate);
                 },
-            }
         }
     })
 }
@@ -397,7 +400,7 @@ pub fn ManualTab(cx: Scope) -> Element{
                 }
             }else{
                 rsx!{
-                    h4 { "Current directory:" "{settings.read().songs_path.display()}" }
+                    h4 { "Songs directory:" "{settings.read().songs_path.display()}" }
                         h4 { "Selected map: " "{map.read().map_path.display()}" }
                         button {
                         onclick: move |_| {
@@ -427,6 +430,29 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
     let msg = use_shared_state::<StatusMessage>(cx)?;
     let assets = &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
 
+    // Determine image path for background image
+    let bg_path = use_memo(cx, &(map.read().background), |bg|{
+        if let Some(path) = bg{
+            if settings.read().songs_path.join(&path).exists(){
+                settings.read().songs_path.join(&path)
+            }else{
+                assets.join("nobg.png")
+            }
+        }else{
+            assets.join("nobg.png")
+        }
+    });
+
+    // Get image for respective osu! gamemode
+    let mode_img = use_memo(cx, &(map.read().mode), |mode|{
+        match mode{
+            Mode::Osu => assets.join("standard.png"),
+            Mode::Taiko => assets.join("taiko.png"),
+            Mode::Catch => assets.join("catch.png"),
+            Mode::Mania => assets.join("mania.png")
+        }
+    });
+
     // Using css filters for the respective star range colors since I don't want to color the image
     // manually
     let css_filter = use_memo(cx, &(map.read().stars), |(stars)|{
@@ -442,30 +468,33 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
     });
 
     cx.render(rsx!{
-        if let Some(bg) = &map.read().background{
-            if settings.read().songs_path.join(bg).exists(){
+        div {
+            class: "map-image",
+            style: r#"background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("{bg_path.display()}");"#,
+            if !map.read().title.is_empty(){
                 rsx!{
-                    img {
-                        src: "{settings.read().songs_path.join(bg).display()}",
-                        width: "100%",
-                        height: "100%"
+                    div{
+                        class: "map-title",
+                        "{map.read().title}"
                     }
-                }
-            }else{
-                rsx!{
-                    img {
-                        src: "{assets.join(\"nobg.png\").display()}",
-                        width: "100%",
-                        height: "100%"
+                    div{
+                        class: "map-artist",
+                        "{map.read().artist}"
                     }
-                }
-            }
-        }else{
-            rsx!{
-                img {
-                    src: "{assets.join(\"nobg.png\").display()}",
-                    width: "100%",
-                    height: "100%"
+                    div{
+                        class: "map-difficulty",
+                        "{map.read().difficulty_name}"
+                    }
+                    div{
+                        class: "map-stars",
+                        "{map.read().stars} "
+                        img {
+                            src: "{mode_img.display()}",
+                            width: "24px",
+                            height: "24px",
+                            style: "filter: {css_filter}; margin-bottom: -8px;"
+                        }
+                    }
                 }
             }
         }
@@ -516,7 +545,10 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
             }
         }
         div{
-            h2 { "Map Options" }
+            h2 { 
+                class: "title",
+                "Map Options"
+            }
             GenericSlider {
                 name: "Approach Rate",
                 acronym: "AR",
@@ -556,8 +588,10 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
             }
         }
         div {
+            class: "button-container",
             title: "Buttons",
             button {
+                class: "create-button",
                 onclick: move |_| {
                     if map.read().rate != 1.0{
                         match generate_map(&map.read(), &settings.read()){
@@ -586,6 +620,7 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
                 "Create map"
             }
             button {
+                class: "reset-button",
                 onclick: move |_| {
                 let temp_map = map.read().clone();
                 *map.write() = read_map_metadata(temp_map, &settings.read()).unwrap();
