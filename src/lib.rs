@@ -11,6 +11,7 @@ pub mod structs;
 pub mod audio;
 pub mod props;
 pub mod cli;
+pub mod components;
 pub use structs::{MapOptions, Settings};
 use audio::*;
 
