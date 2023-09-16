@@ -89,6 +89,7 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     map_data.difficulty.circle_size = map.circle_size as f32;
     map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
     map_data.difficulty.overall_difficulty = map.overall_difficulty as f32;
+    map_data.preview_time.0 = (*map_data.preview_time as f64 / rate).round() as i32;
     map_data.tags.push("ruso-map".to_string());
 
     let audio_closure = audio_path.clone();
@@ -116,14 +117,22 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
         }
     }
 
-    let new_path = path.parent().unwrap().join(path.file_stem().unwrap());
-    write!(File::create(format!("{}({}).osu", new_path.display(), rate))?,"{}", map_data)?;
+    let new_path = PathBuf::from(format!("{}({}).osu", path.parent().unwrap().join(path.file_stem().unwrap()).display(), rate));
+    let new_audio_path = PathBuf::from(format!("{}({}).{}", audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap()));
+
     if let Err(e) = audio_thread.join(){
         return Err(anyhow::anyhow!("Error generating audio file: {:?}", e))
     }
+    
+    // Generate .osz file or .osu depending on user selection
+    if settngs.generate_osz{
+        generate_osz(&new_path, &map_data)?;
+    }else{
+        write!(File::create(&new_path)?,"{}", map_data)?;
+    }
 
-    writeln!(cache_file, "{}({}).osu", new_path.display(), rate)?;
-    writeln!(cache_file, "{}({}).{}", audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap())?;
+    writeln!(cache_file, "{}", new_path.display())?;
+    writeln!(cache_file, "{}", new_audio_path.display())?;
 
     Ok(())
 }
@@ -225,8 +234,12 @@ pub fn change_map_difficulty(map: &MapOptions, settings: &Settings) -> Result<()
         map.circle_size,
         map.hp_drain,
         map.overall_difficulty);
-
-    write!(File::create(&new_path)?, "{}", map_data)?;
+    
+    if settings.generate_osz{
+        generate_osz(&PathBuf::from(&new_path), &map_data)?;
+    }else {
+        write!(File::create(&new_path)?, "{}", map_data)?;
+    }
     writeln!(cache_file, "{}", new_path)?;
 
     Ok(())
@@ -368,3 +381,13 @@ pub fn write_config(settings: &Settings) -> Result<()>{
     Ok(())
 }
 
+pub fn generate_osz(map_path: &Path, map_data: &Beatmap) -> Result<()>{
+    let osz_file = File::create(map_path.parent().unwrap().with_extension("osz"))?;
+    let mut zip = zip::ZipWriter::new(BufWriter::new(osz_file));
+    zip.start_file(map_path.file_name().unwrap().to_str().unwrap(), Default::default())?;
+    map_data.write(&mut zip)?;
+
+    zip.finish()?;
+
+    Ok(())
+}

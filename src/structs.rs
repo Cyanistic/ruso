@@ -51,6 +51,7 @@ impl Default for MapOptions{
 pub struct Settings{
     pub ar_lock: bool,
     pub cs_lock: bool,
+    pub generate_osz: bool,
     pub gosumemory_path: PathBuf,
     pub gosumemory_startup: bool,
     pub hp_lock: bool,
@@ -68,6 +69,7 @@ impl Settings{
             cs_lock: false,
             hp_lock: false,
             od_lock: false,
+            generate_osz: true,
             songs_path: PathBuf::new(),
             gosumemory_path: PathBuf::new(),
             gosumemory_startup: false,
