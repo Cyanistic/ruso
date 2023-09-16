@@ -40,11 +40,13 @@ div.button-container{
 button.create-button{
   flex: 2;
   border-radius: 10px;
+  font-weight: bold;
 }
 
 button.reset-button{
   flex: 1;
   border-radius: 10px;
+  font-weight: bold;
 }
 
 div.status-message{

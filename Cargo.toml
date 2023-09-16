@@ -13,7 +13,7 @@ derive_more = "0.99.17"
 dioxus = "*"
 dioxus-desktop = "0.4.0"
 dirs = "5.0.1"
-futures-util = "0.3.28"
+futures-util = { version = "0.3.28", features = ["io"]}
 # gstreamer = "0.21.0"
 # gstreamer-app = "0.21.0"
 # gstreamer-audio = "0.21.0"

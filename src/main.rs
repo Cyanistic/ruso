@@ -50,6 +50,7 @@ fn App(cx: Scope) -> Element {
     use_shared_state_provider(cx, || StatusMessage::new());
     let tab = use_shared_state::<Tab>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
+    let msg = use_shared_state::<StatusMessage>(cx)?;
 
     cx.render(rsx! {
             style { include_str!("css/style.css") }
@@ -66,8 +67,17 @@ fn App(cx: Scope) -> Element {
                 },
                 Theme::Custom => {
                     // let content = std::fs::read_to_string(dirs::config_dir().unwrap().join("ruso").join("custom.css")).unwrap();
-                    rsx! {
-                        style { std::fs::read_to_string(dirs::config_dir().unwrap().join("ruso").join("custom.css")).unwrap() }
+                    match std::fs::read_to_string(dirs::config_dir().unwrap().join("ruso").join("custom.css")){
+                        Ok(k) => rsx!{
+                                style{ k }
+                                },
+                        Err(e) => {
+                            // msg.write().text = Some(format!("Could not read custom.css: {:?}. Reverting to dark theme.", e));
+                            // msg.write().status = Status::Error;
+                            rsx!{
+                                style { include_str!("css/dark.css") }
+                            }
+                        }
                     }
                 }
             }

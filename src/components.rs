@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use dioxus::prelude::*;
-use tokio_tungstenite::connect_async;
-use futures_util::StreamExt;
+use tokio_tungstenite::{connect_async, tungstenite::Error};
 use serde_json::from_str;
 use rfd::FileDialog;
 use libosu::data::Mode;
 use crate::{props::*, structs::*, *};
+use futures_util::StreamExt;
 
 pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
     let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -341,8 +341,19 @@ pub fn AutoTab(cx: Scope) -> Element{
                 };
                 println!("Connecting to websocket: {}", &settings_url);
                 let (socket, _) = match connect_async(&settings_url).await{
-                    Ok(k) => k,
-                    Err(e) => {
+                    Ok(k) => {
+                        msg.write().text = Some("Connected to websocket!".to_string());
+                        msg.write().status = Status::Success;
+                        k
+                    },
+                    Err(Error::Io(e)) if e.kind() == ErrorKind::ConnectionRefused => {
+                        msg.write().text = Some(format!("Error connecting to websocket. Is gosumemory running with the websocket url set in settings?"));
+                        msg.write().status = Status::Error;
+                        eprintln!("Error connecting to websocket. Is gosumemory running? Retrying in 1 second");
+                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                        continue
+                    },
+                    Err(e) =>{
                         msg.write().text = Some(format!("Error connecting to websocket: {}", e));
                         msg.write().status = Status::Error;
                         eprintln!("Error connecting to websocket... Retrying in 1 second");
@@ -350,6 +361,7 @@ pub fn AutoTab(cx: Scope) -> Element{
                         continue
                     }
                 };
+
                 let (_, mut read) = socket.split();
                 let local = tokio::task::LocalSet::new();
                 local.run_until( async move{
@@ -450,10 +462,10 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
             if settings.read().songs_path.join(&path).exists(){
                 settings.read().songs_path.join(&path)
             }else{
-                assets.join("nobg.png")
+                assets.join("no-bg.jpg")
             }
         }else{
-            assets.join("nobg.png")
+            assets.join("no-bg.jpg")
         }
     });
 
@@ -469,7 +481,7 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
 
     // Using css filters for the respective star range colors since I don't want to color the image
     // manually
-    let css_filter = use_memo(cx, &(map.read().stars), |(stars)|{
+    let css_filter = use_memo(cx, &(map.read().stars), |stars|{
         match stars{
             _ if stars < 2.0 => "invert(69%) sepia(33%) saturate(2985%) hue-rotate(175deg) brightness(102%) contrast(101%)",
             _ if stars < 2.7 => "invert(76%) sepia(69%) saturate(421%) hue-rotate(50deg) brightness(98%) contrast(111%)",
