@@ -1,5 +1,28 @@
+:root {
+  --darkened-primary: hsl(from var(--primary) h s calc(l - 5%));
+  --darkened-secondary: hsl(from var(--secondary) h s calc(l - 5%));
+}
+
 body{
   font-weight: bold;
+  color: var(--text-primary);
+  background-color: var(--primary);
+}
+
+button{
+  border-radius: 20px;
+  color: var(--text-secondary);
+  background-color: var(--secondary);
+  font-weight: bold;
+  font-size: 16px;
+  outline: none;
+  border: none;
+  appearance: none;
+  transition: background-color 0.2s ease-in-out;
+}
+
+button:hover{
+  background-color: var(--darkened-secondary);
 }
 
 h1, h2{
@@ -17,13 +40,65 @@ div.slider-container{
 }
 
 input.slider{
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
   flex-basis: 100%;
   align-self: center;
+  border-radius: 10px;
+  background-color: var(--darkened-primary);
+  accent-color: var(--secondary);
+}
+
+input.slider::selection{
+  outline: none;
+}
+
+input.slider::-webkit-slider-runnable-track{
+  -webkit-appearance: none;
+  height: 5px;
+  border-radius: 5px;
+  background: var(--secondary);
+}
+
+input.slider::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  cursor: pointer;
+  border-radius: 50%;
+  outline: 2px solid var(--secondary);
+  background-color: var(--primary);
+}
+
+input[type="number"], input[type="text"]{
+  background-color: var(--darkened-primary);
+  color: var(--text-secondary);
+  outline: none;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+}
+
+input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 div.tab-container{
   display: flex;
   justify-content: center;
+  gap: 10px;
+  width: 100vw;
+  margin-left: -8px;
+  margin-top: -20px;
+  padding-top: 20px;
+  padding-bottom: 10px;
+  background-color: var(--darkened-primary);
 }
 
 button.tab-button{
@@ -36,13 +111,14 @@ div.button-container{
   height: 20vh;
   min-width: 10px;
   max-height: 50px;
+  gap: 10px;
 }
 
 button.create-button{
   flex: 2;
   border-radius: 10px;
   font-weight: bold;
-  color: white;
+  color: var(--text-secondary);
   background-color: rgba(0,0,0,0.6);
 }
 
@@ -50,15 +126,15 @@ button.reset-button{
   flex: 1;
   border-radius: 10px;
   font-weight: bold;
-  color: white;
+  color: var(--text-secondary);
   background-color: rgba(0,0,0,0.6);
 }
 
 div.status-message{
   background-color: rgba(0,0,0,0.6);
+  color: var(--text-secondary);
   border-radius: 20px;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  padding: 5px;
 }
 
 div.map-image{
@@ -69,6 +145,9 @@ div.map-image{
   margin-left: -8px;
   position: relative;
   text-align: center;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-radius: 40px;
 }
 
 .title{
@@ -80,7 +159,7 @@ div.map-image{
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: bold;
-  color: white;
+  color: var(--text-secondary);
 }
 
 .map-title {
@@ -120,4 +199,36 @@ div.map-image{
 	border-left: 25px solid transparent;
 	border-right: 25px solid transparent;
 	border-bottom: 50px solid #555;
+}
+
+.lock-inner{
+  fill: var(--primary);
+  stroke: var(--primary);
+}
+
+.lock-outer{
+  fill: var(--secondary);
+  stroke: var(--secondary);
+}
+
+lock{
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+
+div.settings-button-container{
+  display: flex;
+  justify-content: center;
+}
+
+button.settings-button{
+  flex: 1;
+}
+
+button.map-button{
+  border-radius: 20px;
+  padding: 10px;
+  position: absolute;
+  top: 8px;
+  left: 16px;
 }
