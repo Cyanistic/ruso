@@ -1,4 +1,4 @@
-use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read, BufWriter, BufReader}, sync::Arc, process, any::Any};
+use std::{path::{PathBuf, Path}, fs::{File, OpenOptions}, io::{Write, ErrorKind, Read, BufWriter, BufReader}, sync::Arc, process, any::Any, collections::HashSet};
 use anyhow::{Result, anyhow};
 use libosu::{prelude::*, events::Event::Background};
 use rosu_pp::BeatmapExt;
@@ -286,6 +286,40 @@ pub fn clean_maps(settings: &Settings) -> Result<usize>{
     }
     writer.flush()?;
     Ok(cleaned)
+}
+
+pub fn calculate_space() -> Result<usize>{
+    let cache = match dirs::cache_dir(){
+        Some(k) => k,
+        None => return Err(anyhow::anyhow!("Couldn't find cache directory"))
+    }.join("ruso");
+
+    let file_contents = match std::fs::read_to_string(cache.join("maps.txt")){
+        Ok(k) => k,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Err(anyhow::anyhow!("No maps to clean")),
+        Err(e) => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
+    };
+    let mut space: usize = 0;
+    let mut files: HashSet<PathBuf> = HashSet::with_capacity(file_contents.lines().count());
+
+    for line in file_contents.lines(){
+        let path: PathBuf;
+        if let Some(ind) = line.find("//"){
+            path = PathBuf::from(line[..ind].trim());
+        }else{
+            path = PathBuf::from(line);
+        }
+        files.insert(path);
+    }
+
+    for file in files{
+        space += match file.metadata(){
+            Ok(k) => k.len() as usize,
+            Err(_) => 0
+        }
+    }
+
+    Ok(space)
 }
 
 /// Rounds a float to the given number of decimal places
