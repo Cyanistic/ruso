@@ -300,7 +300,7 @@ pub fn read_space() -> Result<usize>{
     Ok(match std::fs::read_to_string(cache.join("used_space.txt")){
         Ok(k) => k.parse::<usize>()?,
         Err(e) if e.kind() == ErrorKind::NotFound => 0,
-        Err(e) => return Err(anyhow::anyhow!("Error opening used_space.txt: {}", e))
+        Err(e) => return Err(anyhow::anyhow!("Error reading used space cache: {}", e))
     })
 }
 

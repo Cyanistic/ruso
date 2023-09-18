@@ -230,5 +230,5 @@ button.map-button{
 }
 
 div.settings-container{
-  display: block;
+  line-height: 30px;
 }

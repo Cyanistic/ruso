@@ -299,7 +299,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             6 => "E",
             7 => "Z",
             8 => "Y",
-            _ => "bro wtf"
+            _ => "touch grass"
         };
         format!("{shortened_space} {suffix}B")
     });
@@ -330,6 +330,12 @@ pub fn SettingsTab(cx: Scope) -> Element{
         div {
             class: "settings-container",
             title: "Settings",
+            p {
+                style: "display: inline;",
+                title: "Config Path: This is the path to the directory where all of your settings are stored. The custom theme is custom.css and settings are in settings.json",
+                "Config Path: {dirs::config_dir().unwrap().join(\"ruso\").display()}"
+            }
+            br {}
             "Theme: "
             select {
                 value: match settings.read().theme{
@@ -443,7 +449,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
                 class: "settings-button-container",
                 button {
                     class: "settings-button",
-                    title: "Save settings to config file",
+                    title: "Save settings: Saves current settings to settings.json",
                     onclick: move |_| {
                         match write_config(&settings.read()){
                             Ok(_) => println!("Settings saved to file successfully!"),
@@ -472,9 +478,6 @@ pub fn SettingsTab(cx: Scope) -> Element{
                     },
                     "{clean_text}"
                 }
-            }
-            h6 {
-                "Config Path: {dirs::config_dir().unwrap().join(\"ruso\").display()}"
             }
         }
     })
