@@ -10,7 +10,7 @@ body{
 }
 
 button{
-  border-radius: 20px;
+  border-radius: 10px;
   color: var(--text-secondary);
   background-color: var(--secondary);
   font-weight: bold;
@@ -211,14 +211,10 @@ div.map-image{
   stroke: var(--secondary);
 }
 
-lock{
-  margin-top: 0px;
-  margin-bottom: 0px;
-}
-
 div.settings-button-container{
   display: flex;
   justify-content: center;
+  gap: 10px;
 }
 
 button.settings-button{
@@ -231,4 +227,8 @@ button.map-button{
   position: absolute;
   top: 8px;
   left: 16px;
+}
+
+div.settings-container{
+  display: block;
 }
