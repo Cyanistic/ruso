@@ -9,10 +9,11 @@ use ruso::{structs::*, components::*,*};
 async fn main() -> anyhow::Result<()>{
     let mut gosu_process: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
     let gosu_process_clone = gosu_process.clone();
+    let _ = generate_example_theme("custom.css");
     ctrlc::set_handler(move ||{
         // Fix terminal carriage return
         if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
-            process.wait();
+            let _ = process.wait();
         }
         let mut gosu_process_clone = gosu_process_clone.lock().unwrap();
         

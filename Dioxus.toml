@@ -16,15 +16,15 @@ asset_dir = "assets"
 [bundle]
 identifier = "com.cyanism.ruso"
 publisher = "cyanism"
-icon = ["assets/icon.png"]
+icon = ["assets/ruso.png"]
 resources = ["assets/*"]
 category = "Utility"
-short_description = "Ruso is a osu! map generator."
+short_description = "Ruso is an osu! map generator."
 
 [web.app]
 
 # HTML title tag content
-title = "dioxus | ⛺"
+title = "ruso!"
 
 [web.watcher]
 
