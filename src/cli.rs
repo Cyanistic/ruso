@@ -13,7 +13,7 @@ pub async fn run() -> Result<()>{
 
     let args = Vec::from_iter(std::env::args());
     let mut args = args.iter().skip(1).map(AsRef::as_ref).collect::<Vec<&str>>();
-    const AVAILABLE_COMMANDS: [&str; 20] = [
+    const AVAILABLE_COMMANDS: [&str; 22] = [
         "-a", "--approach-rate",
         "-b", "--bpm",
         "-c", "--circle-size",
@@ -24,12 +24,14 @@ pub async fn run() -> Result<()>{
         "-p", "--path",
         "-r", "--rate",
         "-V", "--version",
+        "-z", "+z"
     ];
 
-    const FLAGS: [&str; 6] = [
+    const FLAGS: [&str; 8] = [
         "-h", "--help",
         "-V", "--version",
         "-g", "--gosumemory",
+        "-z", "+z"
     ];
     
     // Add empty string after argument if the argument is a flag for easier error handling
@@ -120,6 +122,8 @@ pub async fn run() -> Result<()>{
                 println!("Ruso v{}", env!("CARGO_PKG_VERSION"));
                 exit(0);
             }
+            "-z" => settings.generate_osz = false,
+            "+z" => settings.generate_osz = true,
             _ => return Err(anyhow!("Invalid command: {}", args[ind]))
         }
     }
@@ -177,41 +181,45 @@ fn print_help(){
         println!("{}Running with no arguments runs the GUI version.", BOLD);
         println!("{}{}Usage:{}{} ruso [OPTIONS]{}\n", BOLD, UND, RES, BOLD, RES);
         println!("{}{}OPTIONS:{}", BOLD, UND, RES);
-        println!("  {}-h, --help                    {}Print the help information and exit.", BOLD, RES);
-        println!("  {}-V, --version                 {}Print version and exit.", BOLD, RES);
-        println!("  {}-a, --approach-rate           {}The approach rate of the map. Will remain unchanged if not provided.", BOLD, RES);
-        println!("  {}-b, --bpm                     {}The new bpm of the map. This will override --rate if provided.", BOLD, RES);
-        println!("  {}-c, --circle-size             {}The circle size of the map. Will remain unchanged if not provided.", BOLD, RES);
-        println!("  {}-d, --hp-drain                {}The hp drain of the map. Will remain unchanged if not provided.", BOLD, RES);
-        println!("  {}-g, --gosumemory              {}Spawn gosumemory as a child process.", BOLD, RES);
-        println!("                                  This will use the paths provided in '{}' as the gosumemory and osu! songs path respectively.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("  {}-o, --overall-difficulty      {}The overall difficulty of the map. Will remain unchanged if not provided.", BOLD, RES);
-        println!("  {}-p, --path                    {}The path to the osu! map.", BOLD, RES);
-        println!("                                  This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("                                  This is inferred, and the former will take precedence over the latter.");
-        println!("                                  If this is not provided, ruso will attempt to connect to a running gosumemory instance with the websocket url provided in '{}'.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("  {}-r, --rate                    {}The playback rate (or speed) of the map.", BOLD, RES);
-        println!("                                  This will speed up the .osu file and the corresponding audio file.");
+        println!("  {}-h, --help                      {}Print the help information and exit.", BOLD, RES);
+        println!("  {}-V, --version                   {}Print version and exit.", BOLD, RES);
+        println!("  {}-a, --approach-rate      [AR]   {}The approach rate of the map. Will remain unchanged if not provided.", BOLD, RES);
+        println!("  {}-b, --bpm                [BPM]  {}The new bpm of the map. This will override --rate if provided.", BOLD, RES);
+        println!("  {}-c, --circle-size        [CS]   {}The circle size of the map. Will remain unchanged if not provided.", BOLD, RES);
+        println!("  {}-d, --hp-drain           [HP]   {}The hp drain of the map. Will remain unchanged if not provided.", BOLD, RES);
+        println!("  {}-g, --gosumemory                {}Spawn gosumemory as a child process.", BOLD, RES);
+        println!("                                    This will use the paths provided in '{}' as the gosumemory and osu! songs path respectively.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
+        println!("  {}-o, --overall-difficulty [OD]   {}The overall difficulty of the map. Will remain unchanged if not provided.", BOLD, RES);
+        println!("  {}-p, --path               [PATH] {}The path to the osu! map.", BOLD, RES);
+        println!("                                    This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
+        println!("                                    This is inferred, and the former will take precedence over the latter.");
+        println!("                                    If this is not provided, ruso will attempt to connect to a running gosumemory instance with the websocket url provided in '{}'.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
+        println!("  {}-r, --rate               [RATE] {}The playback rate (or speed) of the map.", BOLD, RES);
+        println!("                                    This will speed up the .osu file and the corresponding audio file.");
+        println!("  {}-/+z                            {}Enable (+z) or disable (-z) generation of .osz files.", BOLD, RES);
+        println!("                                    This will use the 'generate_osz' value in '{}' if not provided.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
     }else{
         println!("Generates osu! maps based on given args.");
         println!("Running with no arguments runs the GUI version.");
         println!("Usage: ruso [OPTIONS]\n");
         println!("OPTIONS:");
-        println!("  -h, --help                    Print the help information and exit.");
-        println!("  -V, --version                 Print version and exit.");
-        println!("  -a, --approach-rate           The approach rate of the map. Will remain unchanged if not provided.");
-        println!("  -b, --bpm                     The new bpm of the map. This will override --rate if provided.");
-        println!("  -c, --circle-size             The circle size of the map. Will remain unchanged if not provided.");
-        println!("  -d, --hp-drain                The hp drain of the map. Will remain unchanged if not provided.");
-        println!("  -g, --gosumemory              Spawn gosumemory as a child process.");
-        println!("                                This will use the paths provided in '{}' as the gosumemory and osu! songs path respectively.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("  -o, --overall-difficulty      The overall difficulty of the map. Will remain unchanged if not provided.");
-        println!("  -p, --path                    The path to the osu! map.");
-        println!("                                This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("                                This is inferred, and the former will take precedence over the latter.");
-        println!("                                If this is not provided, ruso will attempt to connect to a running gosumemory instance with the websocket url provided in '{}'.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
-        println!("  -r, --rate                    The playback rate (or speed) of the map.");
-        println!("                                This will speed up the .osu file and the corresponding audio file.");
+        println!("  -h, --help                      Print the help information and exit.");
+        println!("  -V, --version                   Print version and exit.");
+        println!("  -a, --approach-rate      [AR]   The approach rate of the map. Will remain unchanged if not provided.");
+        println!("  -b, --bpm                [BPM]  The new bpm of the map. This will override --rate if provided.");
+        println!("  -c, --circle-size        [CS]   The circle size of the map. Will remain unchanged if not provided.");
+        println!("  -d, --hp-drain           [HP]   The hp drain of the map. Will remain unchanged if not provided.");
+        println!("  -g, --gosumemory                Spawn gosumemory as a child process.");
+        println!("                                  This will use the paths provided in '{}' as the gosumemory and osu! songs path respectively.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
+        println!("  -o, --overall-difficulty [OD]   The overall difficulty of the map. Will remain unchanged if not provided.");
+        println!("  -p, --path               [PATH] The path to the osu! map.");
+        println!("                                  This can be a regular path or a path the osu! songs path provided in '{}' as the root.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
+        println!("                                  This is inferred, and the former will take precedence over the latter.");
+        println!("                                  If this is not provided, ruso will attempt to connect to a running gosumemory instance with the websocket url provided in '{}'.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
+        println!("  -r, --rate               [RATE] The playback rate (or speed) of the map.");
+        println!("                                  This will speed up the .osu file and the corresponding audio file.");
+        println!("  -/+z                            Enable (+z) or disable (-z) generation of .osz files.");
+        println!("                                  This will use the 'generate_osz' value in '{}' if not provided.", dirs::config_dir().unwrap().join("ruso").join("settings.json").display());
     }
 }
 
