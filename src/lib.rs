@@ -15,7 +15,7 @@ pub mod components;
 pub use structs::{MapOptions, Settings};
 use audio::*;
 
-/// Reads the data of a .osu map file up to the timing points and returns it as a MapOptions struct
+/// Reads the data of a .osu map file up to the timing points and returns it as a MapOptions struct.
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
     let map = libosu::beatmap::Beatmap::parse(BufReader::new(File::open(settings.songs_path.join(&options.map_path))?))?;
     let stars = rosu_pp::Beatmap::from_path(settings.songs_path.join(&options.map_path))?.stars().calculate().stars();
@@ -57,7 +57,7 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
     Ok(new_options)
 }
 
-/// Generates an audio and .osu file using the given Settings and MapOptions structs
+/// Generates an audio and .osu file using the given Settings and MapOptions structs.
 pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     let path = &settngs.songs_path.join(&map.map_path);
     let rate = map.rate;
@@ -71,6 +71,8 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     if !cache_dir.exists(){
         std::fs::create_dir_all(&cache_dir)?;
     }
+
+    // Open the cache file to append new maps or create a new one with help info
     let mut cache_file = match OpenOptions::new().append(true).open(cache_dir.join("maps.txt")){
         Ok(k) => k,
         Err(e) if e.kind() == ErrorKind::NotFound => {
@@ -83,8 +85,9 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
         Err(e) => return Err(anyhow::anyhow!("Error opening maps.txt: {}", e))
     };
 
+    // Change beatmap properties to match those given by the user
     map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
-    map_data.difficulty_name += format!("({}x)",rate).as_str(); 
+    map_data.difficulty_name += format!(" {}x ({}bpm)",rate, map.bpm).as_str(); 
     map_data.difficulty.approach_rate = map.approach_rate as f32;
     map_data.difficulty.circle_size = map.circle_size as f32;
     map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
@@ -92,11 +95,14 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     map_data.preview_time.0 = (*map_data.preview_time as f64 / rate).round() as i32;
     map_data.tags.push("ruso-map".to_string());
 
+    // Create a new variable to pass the audio path to another thread
+    // and generate the audio file on that thread
     let audio_closure = audio_path.clone();
     let audio_thread = std::thread::spawn(move || {
         generate_audio(&audio_closure, rate)
     });
 
+    // Change time value for each hit object to match the new rate of the map
     for h in &mut map_data.hit_objects{
         h.start_time.0 = (*h.start_time as f64 / rate).round() as i32;
         match &mut h.kind {
@@ -110,6 +116,7 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
         }
     }
 
+    // Change time value for each timing point to match the new rate of the map
     for point in &mut map_data.timing_points{
         point.time.0 = (point.time.0 as f64 / rate).round() as i32;
         if let TimingPointKind::Uninherited(point) = &mut point.kind{
@@ -117,9 +124,11 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
         }
     }
 
+    // Generate paths for the new .osu file and audio file
     let new_path = PathBuf::from(format!("{}({}).osu", path.parent().unwrap().join(path.file_stem().unwrap()).display(), rate));
     let new_audio_path = PathBuf::from(format!("{}({}).{}", audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap()));
 
+    // Wait for the audio threat to finish and return an error if something went wrong
     if let Err(e) = audio_thread.join(){
         return Err(anyhow::anyhow!("Error generating audio file: {:?}", e))
     }
@@ -131,25 +140,29 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
         write!(File::create(&new_path)?,"{}", map_data)?;
     }
 
+    // Write the new paths to the cache file for easy deletion and space usage calculation
     writeln!(cache_file, "{}", new_path.display())?;
     writeln!(cache_file, "{}", new_audio_path.display())?;
 
     Ok(())
 }
 
-/// Generates a new audio file with the given rate
+/// Generates a new audio file with the given rate.
 fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
     let final_path = PathBuf::from(format!("{}({}).{}",
         audio_path.parent().unwrap_or(Path::new("")).join(audio_path.file_stem().ok_or(anyhow!("Couldn't find the file stem for audio file"))?).display(),
         rate,
         audio_path.extension().ok_or(anyhow!("Invalid audio file extension"))?.to_str().unwrap()));
     
+    // Only generate an audio file if it does not already exist to prevent unnecessary processing
     if !final_path.exists(){
+        // Generate audio file based on extension
         match audio_path.extension().unwrap_or(std::ffi::OsStr::new("")).to_str().unwrap(){
             "ogg" => change_speed_ogg(audio_path, rate)?,
             "wav" => change_speed_wav(audio_path, rate)?,
             "mp3" => change_speed_mp3(audio_path, rate)?,
             _ => {
+                // Attempt to process file as mp3 if it is not a known file type
                  if change_speed_mp3(audio_path, rate).is_err(){
                     return Err(anyhow!("Unsupported/unknown file type!"))
                 }
@@ -160,7 +173,10 @@ fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
     Ok(())
 }
 
-/// Generates a new .osu file without generating a new audio file
+/// Generates a new .osu file without generating a new audio file.
+///
+/// This does the same thing as generate_map() but without the audio generation and gives .osu file
+/// a slightly different name.
 pub fn change_map_difficulty(map: &MapOptions, settings: &Settings) -> Result<()>{
     let path = settings.songs_path.join(&map.map_path);
     let map_file = File::open(&path)?;
@@ -191,6 +207,8 @@ pub fn change_map_difficulty(map: &MapOptions, settings: &Settings) -> Result<()
     map_data.difficulty.overall_difficulty = map.overall_difficulty as f32;
     map_data.tags.push("ruso-map".to_string());
 
+    // Make the new path list the new difficulty values instead of the rate since the rate is
+    // unchanged
     let new_path = format!("{} (AR {} CS {} HP {} OD {})", path.parent().unwrap().join(path.file_stem().unwrap()).display(),
         map.approach_rate,
         map.circle_size,
@@ -207,7 +225,7 @@ pub fn change_map_difficulty(map: &MapOptions, settings: &Settings) -> Result<()
     Ok(())
 }
 
-/// Calculates the bpm of beatmap using the timing points
+/// Calculates the bpm of beatmap using the timing points.
 pub fn calculate_bpm(points: &[TimingPoint]) -> usize{
     (60000.0 / points.iter().filter_map(|x| match &x.kind{
         TimingPointKind::Uninherited(k) => Some(k.mpb.abs()),
@@ -215,7 +233,7 @@ pub fn calculate_bpm(points: &[TimingPoint]) -> usize{
     }).min_by(|x,y| x.partial_cmp(y).unwrap()).unwrap_or(100.0)).round() as usize
 }
 
-/// Removes all files generated by ruso
+/// Removes all files generated by ruso.
 pub fn clean_maps(settings: &Settings) -> Result<usize>{
     let cache = match dirs::cache_dir(){
         Some(k) => k,
@@ -234,6 +252,7 @@ pub fn clean_maps(settings: &Settings) -> Result<usize>{
 
     for line in file_contents.lines(){
         let path: PathBuf;
+        // Treat "//" as the start of a single-line comment and ignore everything after it 
         if let Some(ind) = line.find("//"){
             path = PathBuf::from(line[..ind].trim());
         }else{
@@ -250,7 +269,7 @@ pub fn clean_maps(settings: &Settings) -> Result<usize>{
     Ok(cleaned)
 }
 
-/// Calculates space used by all files generated by ruso and saves it to a cache file
+/// Calculates space used by all files generated by ruso and saves it to a cache file.
 pub fn calculate_space(file_name: &str) -> Result<usize>{
     let cache = match dirs::cache_dir(){
         Some(k) => k,
@@ -290,7 +309,7 @@ pub fn calculate_space(file_name: &str) -> Result<usize>{
     Ok(used_space)
 }
 
-/// Reads the cached space used by files generated by ruso
+/// Reads the cached space used by files generated by ruso.
 pub fn read_space(file_name: &str) -> Result<usize>{
     let cache = match dirs::cache_dir(){
         Some(k) => k,
@@ -304,13 +323,13 @@ pub fn read_space(file_name: &str) -> Result<usize>{
     })
 }
 
-/// Rounds a float to the given number of decimal places
+/// Rounds a float to the given number of decimal places.
 pub fn round_dec(x: f64, decimals: u32) -> f64 {
     let y = 10i32.pow(decimals) as f64;
     (x * y).round() / y
 }
 
-/// Connects to gosumemory with the settings from the Settings struct
+/// Connects to gosumemory with the settings from the Settings struct.
 pub async fn gosu_websocket_listen(settings: &Settings) -> Result<()>{
     let (socket, response) = connect_async(&settings.websocket_url).await?;
     if response.status().is_success(){
@@ -332,7 +351,7 @@ pub async fn gosu_websocket_listen(settings: &Settings) -> Result<()>{
     Ok(())
 }
 
-/// Starts gosumemory with the settings from the Settings struct
+/// Starts gosumemory with the settings from the Settings struct.
 #[cfg(target_os = "linux")]
 pub fn gosu_startup(settings: &Settings) -> Result<Child>{
     use std::{process::Command, io::{IsTerminal, stderr}};
@@ -343,7 +362,10 @@ pub fn gosu_startup(settings: &Settings) -> Result<Child>{
                 eprintln!("gosumemory requires root permissions to read /proc on linux");
                 stderr().flush()?;
 
-                // Spawn a dummy command to get the sudo password prompt out of the way
+                // Spawn a dummy command to get the sudo password prompt out of the way and abuse the
+                // sudo password cooldown to spawn the actual command
+                // This is a hack but I couldn't find another way to do it without increasing
+                // complexity
                 let mut dummy = Command::new("sudo")
                 .args(["sleep", "0"])
                 .spawn()?;
@@ -391,12 +413,13 @@ pub fn write_config(settings: &Settings, file_name: &str) -> Result<()>{
     if !config_path.exists(){
         std::fs::create_dir_all(&config_path)?;
     }
-    let mut config_file = File::create(config_path.join(file_name))?;
+    let mut config_file = BufWriter::new(File::create(config_path.join(file_name))?);
     let config_json = serde_json::to_string_pretty(settings)?;
     write!(config_file, "{}", config_json)?;
     Ok(())
 }
 
+/// Generates an .osz file from an .osu file.
 pub fn generate_osz(map_path: &Path, map_data: &Beatmap) -> Result<()>{
     let osz_file = File::create(map_path.parent().unwrap().with_extension("osz"))?;
     let mut zip = zip::ZipWriter::new(BufWriter::new(osz_file));
@@ -408,7 +431,7 @@ pub fn generate_osz(map_path: &Path, map_data: &Beatmap) -> Result<()>{
     Ok(())
 }
 
-/// Generates an example theme file with the osu! theme colors
+/// Generates an example theme file with the osu! theme colors.
 pub fn generate_example_theme(file_name: &str) -> Result<()>{
     let config = match dirs::config_dir(){
         Some(k) => k,

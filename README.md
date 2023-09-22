@@ -13,10 +13,10 @@
 - Auto and manual map selection modes
     - Manually choose maps to modify using the file picker
     - Automatically choose maps to modify based on the currently chosen map inside of a running osu! instance (requires [gosumemory](https://github.com/l3lackShark/gosumemory) to be running)
-- Tags generated maps with the "ruso-map" tag to easily find them inside osu!
-- Calculates space used up by all generated maps
+- Tag generated maps with the "ruso-map" tag to easily find them inside osu!
+- Calculate space used up by all generated maps
 - Quickly remove all generated maps and audio files to free up unused space
-- Generates .osz files for quickly loading maps into osu!
+- Generate .osz files for quickly loading maps into osu!
 - Run [gosumemory](https://github.com/l3lackShark/gosumemory) on startup for seamless auto select integration
 
 ## Upcoming Features

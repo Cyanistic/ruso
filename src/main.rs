@@ -37,7 +37,7 @@ async fn main() -> anyhow::Result<()>{
         }
         dioxus_desktop::launch_cfg(App,
             Config::default().with_window(WindowBuilder::new().with_maximizable(true).with_maximizable(true).with_resizable(true)
-            .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(400.0, 600.0)))
+            .with_inner_size(dioxus_desktop::wry::application::dpi::LogicalSize::new(427.0, 531.0))) // Same window size as osu-trainer lol
         );
     }
     
@@ -86,16 +86,19 @@ fn App(cx: Scope) -> Element {
                 class: "tab-container",
                 button{
                     class: "tab-button",
+                    title: "Auto select: Automatically select the map from a running osu! instance using gosumemory. This will continually poll gosumemory until it receives a response, no need to refresh.",
                     onclick: move |_| *tab.write() = Tab::Auto,
                     "Auto Select"
                 }
                 button{
                     class: "tab-button",
+                    title: "Manual select: Manually select a map to modify using the file picker",
                     onclick: move |_| *tab.write() = Tab::Manual,
                     "Manual Select"
                 }
                 button{
                     class: "tab-button",
+                    title: "Settings: Configure ruso settings",
                     onclick: move |_| *tab.write() = Tab::Settings,
                     "Settings"
                 }

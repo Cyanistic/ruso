@@ -223,6 +223,7 @@ fn print_help(){
     }
 }
 
+/// Attempt to get the path to the map from gosumemory
 async fn path_from_gosu(settings: &Settings) -> Result<PathBuf>{
     let (socket, _) = connect_async(&settings.websocket_url).await?;
     let ( _, mut read) = socket.split();
@@ -239,6 +240,7 @@ async fn path_from_gosu(settings: &Settings) -> Result<PathBuf>{
     }
 }
 
+/// Continually poll gosu until it responds
 async fn poll_gosu(settings: &Settings){
     loop{
         let (socket, _) = match connect_async(&settings.websocket_url).await{
