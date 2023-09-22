@@ -22,7 +22,8 @@
 ## Upcoming Features
 - Customize the playback rate of a song while keeping its pitch intact
 - No dependence on gosumemory for auto mode
-- Add fancy animations
+- Fancy animations/Improved UI
+- AR and OD scaling
 
 ## Getting Started
 1. Install ruso using the [installation guide](#installation) for your OS.
@@ -34,13 +35,13 @@
 
 ## Installation
 **Windows and macOS:**
-    Download the latest release from the [releases](https://github.com/Cyanistic/ruso/releases) page.
+    Download the latest release from the [releases](https://github.com/Cyanistic/ruso/releases/latest) page.
 
 **Debian and RHEL based Linux distributions:**
-    Download and run the latest release's .deb and .rpm files respectively from the [releases](https://github.com/Cyanistic/ruso/releases) page.
+    Download and run the latest release's .deb and .rpm files respectively from the [releases](https://github.com/Cyanistic/ruso/releases/latest) page.
 
 **Other Linux distributions:**
-    Download the latest release's .appimage file from the [releases](https://github.com/Cyanistic/ruso/releases) page.
+    Download the latest release's .appimage file from the [releases](https://github.com/Cyanistic/ruso/releases/latest) page.
 If you prefer building from source, [follow these instructions](#building).
 
 ## Dependencies

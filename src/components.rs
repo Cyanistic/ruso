@@ -430,73 +430,82 @@ pub fn AutoTab(cx: Scope) -> Element{
     let _: &Coroutine<()> = use_coroutine(cx, |_: UnboundedReceiver<_>| { 
         to_owned![map, settings, msg];
         async move{
-            loop{
-                to_owned![map, settings, msg];
-                let settings_url = match url::Url::parse(settings.read().websocket_url.clone().as_str()){
-                    Ok(k) => k,
-                    Err(e) => {
-                        msg.write().text = Some(format!("Error parsing websocket url: {}", e));
-                        msg.write().status = Status::Error;
-                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                        continue
-                    }
-                };
-                println!("Connecting to websocket: {}", &settings_url);
-                let (socket, _) = match connect_async(&settings_url).await{
-                    Ok(k) => {
-                        msg.write().text = Some("Connected to websocket!".to_string());
-                        msg.write().status = Status::Success;
-                        k
-                    },
-                    Err(Error::Io(e)) if e.kind() == ErrorKind::ConnectionRefused => {
-                        msg.write().text = Some(format!("Error connecting to websocket. Is gosumemory running with the websocket url set in settings?"));
-                        msg.write().status = Status::Error;
-                        eprintln!("Error connecting to websocket. Is gosumemory running? Retrying in 1 second");
-                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                        continue
-                    },
-                    Err(e) =>{
-                        msg.write().text = Some(format!("Error connecting to websocket: {}", e));
-                        msg.write().status = Status::Error;
-                        eprintln!("Error connecting to websocket... Retrying in 1 second");
-                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                        continue
-                    }
-                };
-
-                let (_, mut read) = socket.split();
-                let local = tokio::task::LocalSet::new();
-                local.run_until( async move{
-                    tokio::task::spawn_local( async move{
-                        while let Some(message) = read.next().await{
-                            match message{
-                                Ok(message) => {
-                                    let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
-                                    if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
-                                        map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
-                                        if settings.read().songs_path != PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap()){
-
-                                        }
-                                        let temp_map = map.read().clone();
-                                        *map.write() = match read_map_metadata(temp_map, &settings.read()){
-                                            Ok(k) => k,
-                                            Err(e) => {
-                                                msg.write().text = Some(format!("Error reading map metadata: {}", e));
-                                                msg.write().status = Status::Error;
-                                                continue
-                                            }
-                                        };
-                                    }
-                                },
-                                Err(e) => {
-                                    msg.write().text = Some(format!("Lost connection to Websocket: {}", e));
-                                    msg.write().status = Status::Error;
-                                }
+            // Spawning a new local thread since the application freezes up when too many loops run
+            // on the main thread
+            let outer_local = tokio::task::LocalSet::new();
+            outer_local.run_until( async move{
+                tokio::task::spawn_local( async move{
+                    loop{
+                        to_owned![map, settings, msg];
+                        let settings_url = match url::Url::parse(settings.read().websocket_url.clone().as_str()){
+                            Ok(k) => k,
+                            Err(e) => {
+                                msg.write().text = Some(format!("Error parsing websocket url: {}", e));
+                                msg.write().status = Status::Error;
+                                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                                continue
                             }
                         };
-                    }).await;
+                        println!("Connecting to websocket: {}", &settings_url);
+                        let (socket, _) = match connect_async(&settings_url).await{
+                            Ok(k) => {
+                                msg.write().text = Some("Connected to websocket!".to_string());
+                                msg.write().status = Status::Success;
+                                k
+                            },
+                            Err(Error::Io(e)) if e.kind() == ErrorKind::ConnectionRefused => {
+                                msg.write().text = Some(format!("Error connecting to websocket. Is gosumemory running with the websocket url set in settings?"));
+                                msg.write().status = Status::Error;
+                                eprintln!("Error connecting to websocket. Is gosumemory running? Retrying in 1 second");
+                                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                                continue
+                            },
+                            Err(e) =>{
+                                msg.write().text = Some(format!("Error connecting to websocket: {}", e));
+                                msg.write().status = Status::Error;
+                                eprintln!("Error connecting to websocket... Retrying in 1 second");
+                                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                                continue
+                            }
+                        };
+
+                        let (_, mut read) = socket.split();
+                        // Spawning a new local task here is only needed if there is no outer_local thread. Leaving it here
+                        // just in case
+                        // let local = tokio::task::LocalSet::new();
+                        // local.run_until( async move{
+                        //     tokio::task::spawn_local( async move{
+                                while let Some(message) = read.next().await{
+                                    match message{
+                                        Ok(message) => {
+                                            let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
+                                            if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
+                                                map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
+                                                if settings.read().songs_path != PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap()){
+
+                                                }
+                                                let temp_map = map.read().clone();
+                                                *map.write() = match read_map_metadata(temp_map, &settings.read()){
+                                                    Ok(k) => k,
+                                                    Err(e) => {
+                                                        msg.write().text = Some(format!("Error reading map metadata: {}", e));
+                                                        msg.write().status = Status::Error;
+                                                        continue
+                                                    }
+                                                };
+                                            }
+                                        },
+                                        Err(e) => {
+                                            msg.write().text = Some(format!("Lost connection to Websocket: {}", e));
+                                            msg.write().status = Status::Error;
+                                        }
+                                    }
+                                };
+                        //     }).await;
+                        // }).await;
+                    }
                 }).await;
-            }
+            }).await;
         }
     });
     cx.render(rsx!{
