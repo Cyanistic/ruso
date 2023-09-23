@@ -4,6 +4,7 @@ use dioxus::prelude::*;
 use dioxus_desktop::{Config, WindowBuilder};
 mod cli;
 use ruso::{structs::*, components::*,*};
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
@@ -52,10 +53,11 @@ fn App(cx: Scope) -> Element {
     let tab = use_shared_state::<Tab>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
-
+    
     cx.render(rsx! {
-            style { include_str!("css/style.css") }
-
+        style { include_str!("css/style.css") }
+        div{
+            class: "document",
             match settings.read().theme{
                 Theme::Light => rsx! {
                     style { include_str!("css/light.css") }
@@ -108,6 +110,7 @@ fn App(cx: Scope) -> Element {
                 Tab::Manual => rsx!{ ManualTab{} },
                 Tab::Settings => rsx! { SettingsTab{} },
             }
+        }
     })
 }
 

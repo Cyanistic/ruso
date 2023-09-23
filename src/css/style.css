@@ -1,6 +1,8 @@
 :root {
   --darkened-primary: hsl(from var(--primary) h s calc(l - 7%));
   --darkened-secondary: hsl(from var(--secondary) h s calc(l - 7%));
+  --lightened-primary: hsl(from var(--primary) h s calc(l + 15%));
+  --lightened-secondary: hsl(from var(--secondary) h s calc(l + 15%));
 }
 
 body{
@@ -15,15 +17,17 @@ button{
   color: var(--text-secondary);
   background-color: var(--secondary);
   font-weight: bold;
-  font-size: 16px;
+  font-size: 1rem;
   outline: none;
-  border: none;
+  border: 3px solid transparent;
   appearance: none;
-  transition: background-color 0.2s ease-in-out;
+  transition: transform 0.3s ease-in-out, background-color 0.3s ease-in-out, border 0.3s ease-in-out;
 }
 
 button:hover{
   background-color: var(--darkened-secondary);
+  border: 3px solid var(--lightened-secondary);
+  transform: scale(1.03);
 }
 
 h1, h2{
@@ -51,8 +55,8 @@ input.slider{
   accent-color: var(--secondary);
 }
 
-input.generic-slider{
-  margin-top: -8px;
+span.slider-label{
+  margin-top: 6px;
 }
 
 input.slider::selection{
@@ -76,6 +80,11 @@ input.slider::-webkit-slider-thumb{
   border-radius: 50%;
   outline: 2px solid var(--secondary);
   background-color: var(--primary);
+}
+
+div.rate-slider-container{
+  padding-top: 1vh;
+  padding-bottom: 1vh;
 }
 
 input[type="number"], input[type="text"], select.theme-selector{
@@ -107,8 +116,18 @@ div.tab-container{
 
 button.tab-button{
   flex-grow: 1;
-  margin-left: 5px;
-  margin-right: 5px;
+  margin-left: 1.5vw;
+  margin-right: 1.5vw;
+}
+
+button.tab-button:hover{
+  background-color: var(--darkened-secondary);
+  border: 3px solid var(--lightened-secondary);
+  transform: scaleX(1.1) scaleY(1.0);
+}
+
+div.bpm-grid{
+  display: grid;
 }
 
 div.button-container{
@@ -117,7 +136,7 @@ div.button-container{
   height: 20vh;
   min-width: 10px;
   max-height: 50px;
-  gap: 10px;
+  gap: 1vw;
 }
 
 button.create-button{
@@ -141,6 +160,11 @@ button.reset-button{
   background: transparent;
   position: relative;
   overflow: hidden;
+}
+
+button.reset-button:hover{
+  border: 3px solid var(--lightened-primary);
+  transform: scale(1.05);
 }
 
 div.status-message{
@@ -235,22 +259,6 @@ div.map-image{
   animation-iteration-count: infinite;
   animation-duration: calc(200s / var(--speed));
 }
-
-/* .triangle-up:nth-child(1n){ */
-/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 25%)); */
-/* } */
-
-/* .triangle-up:nth-child(2n){ */
-/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 20%)); */
-/* } */
-
-/* .triangle-up:nth-child(3n){ */
-/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 15%)); */
-/* } */
-
-/* .triangle-up:nth-child(4n){ */
-/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 10%)); */
-/* } */
 
 @keyframes move{
   0%{
