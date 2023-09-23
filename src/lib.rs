@@ -392,20 +392,19 @@ pub fn gosu_startup(settings: &Settings) -> Result<Child>{
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn gosu_startup(settings: &Settings) -> Result<()>{
+pub fn gosu_startup(settings: &Settings) -> Result<Child>{
     use std::process::Command;
     if settings.gosumemory_path.is_file(){
         if settings.songs_path.is_dir() {
-            Command::new(settings.gosumemory_path.to_str().unwrap())
+            Ok(Command::new(settings.gosumemory_path.to_str().unwrap())
             .args(["--path", settings.songs_path.to_str().unwrap()])
-            .spawn()?;
+            .spawn()?)
         }else{
             return Err(anyhow::anyhow!("Songs path not found"))
         }
     }else{
         return Err(anyhow::anyhow!("gosumemory executable not found"))
     }
-    Ok(())
 }
 
 pub fn write_config(settings: &Settings, file_name: &str) -> Result<()>{

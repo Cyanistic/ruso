@@ -1,0 +1,93 @@
+name: Build
+on:
+  release:
+    types: [created, edited]
+  workflow_dispatch:
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            rust_target: x86_64-unknown-linux-gnu
+          - platform: macos-latest
+            rust_target: x86_64-apple-darwin
+          - platform: macos-latest
+            rust_target: aarch64-apple-darwin
+          - platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.platform }}
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.rust_target }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Rust (Stable)
+        run:
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - uses: cargo-bins/cargo-binstall@main
+      - name: Install Dioxus
+        run:
+          echo y | cargo binstall dioxus-cli --locked
+      - name: Install Dioxus dependencies (ubuntu)
+        run:
+          sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
+        if: matrix.platform == 'ubuntu-latest'
+      - name: Build App (windows)
+        run: |
+          cargo build --release
+          mv ./target/release/ruso.exe "./target/release/ruso-${{ matrix.rust_target }}.exe"
+          dx bundle --release
+        if: matrix.platform == 'windows-latest'
+        continue-on-error: true
+      - name: Build App (unix)
+        run: | 
+          cargo build --release
+          mv ./target/release/ruso "./target/release/ruso-${{ matrix.rust_target }}"
+          CI=true ~/.cargo/bin/dx bundle --release --verbose
+        if: matrix.platform != 'windows-latest'
+        continue-on-error: true
+      - name: Upload Release Assets (windows)
+        id: upload-release-asset-windows
+        uses: softprops/action-gh-release@v1
+        if: matrix.platform == 'windows-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          draft: false
+          prerelease: false
+          files: |
+            ./dist/bundle/msi/ruso*.msi
+            ./dist/bundle/nsis/ruso*.exe
+            ./target/release/ruso*.exe
+      - name: Upload Release Assets (macOS)
+        id: upload-release-asset-macos
+        uses: softprops/action-gh-release@v1
+        if: matrix.platform == 'macos-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          draft: false
+          prerelease: false
+          files: |
+            ./dist/bundle/macos/ruso*.app
+            ./dist/bundle/dmg/ruso*.dmg
+            ./target/release/ruso-*
+      - name: Upload Release Assets (ubuntu)
+        id: upload-release-asset-ubuntu
+        uses: softprops/action-gh-release@v1
+        if: matrix.platform == 'ubuntu-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          draft: false
+          prerelease: false
+          files: |
+            ./dist/bundle/deb/ruso*.deb
+            ./dist/bundle/appimage/ruso*.AppImage
+            ./target/release/ruso-*

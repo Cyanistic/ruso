@@ -1,6 +1,5 @@
-<h1 align="center">ruso</h1>
 <p align="center"> <img src="assets/ruso.png" width="256" height="256" alt-text="ruso-icon"></p>
-<h2 align="center">A cross-platform CLI and GUI application to modify osu! beatmap parameters. (osu trainer clone)</h2>
+<h2 align="center">A cross-platform CLI and GUI application to easily modify osu! beatmap parameters. (osu trainer clone)</h2>
 
 ## Preview
 <p align="center"> <img src="assets/ruso-gui.png" alt-text="ruso-gui-preview"></p>

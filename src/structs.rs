@@ -79,7 +79,14 @@ impl Settings{
 
     /// Attempt to create a settings struct from an existing 'settings.json' file
     pub fn new_from_config() -> Self{
-        let config_file = dirs::config_dir().unwrap().join("ruso").join("settings.json");
+        let config_dir = dirs::config_dir().unwrap().join("ruso");
+        if !config_dir.exists(){
+            if let Err(e) = std::fs::create_dir_all(&config_dir){
+                eprintln!("Could not create config directory: {}", e);
+                return Self::new()
+            }
+        }
+        let config_file = config_dir.join("settings.json");
         let config_data = match std::fs::read_to_string(&config_file){
             Ok(k) => k,
             Err(e) if e.kind() == ErrorKind::NotFound => {
