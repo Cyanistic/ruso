@@ -5,6 +5,7 @@
 
 body{
   font-weight: bold;
+  font-family: aller, Roboto, sans-serif;
   color: var(--text-primary);
   background-color: var(--primary);
 }
@@ -124,8 +125,10 @@ button.create-button{
   border-radius: 10px;
   font-weight: bold;
   color: var(--text-secondary);
-  /* background-color: rgba(0,0,0,0.6); */
-  background-color: var(--darkened-secondary);
+  /* background-color: var(--darkened-secondary); */
+  background: transparent;
+  position: relative;
+  overflow: hidden;
 }
 
 button.reset-button{
@@ -133,8 +136,11 @@ button.reset-button{
   border-radius: 10px;
   font-weight: bold;
   color: var(--text-secondary);
-  background-color: rgba(0,0,0,0.6);
-  background-color: var(--darkened-primary);
+  /* background-color: rgba(0,0,0,0.6); */
+  /* background-color: var(--darkened-primary); */
+  background: transparent;
+  position: relative;
+  overflow: hidden;
 }
 
 div.status-message{
@@ -218,9 +224,53 @@ div.map-image{
 .triangle-up {
 	width: 0;
 	height: 0;
-	border-left: 25px solid transparent;
-	border-right: 25px solid transparent;
-	border-bottom: 50px solid #555;
+	border-left: var(--size) solid transparent;
+	border-right: var(--size) solid transparent;
+	border-bottom: calc(2 * var(--size)) solid #555;
+  animation-name: move;
+  position: absolute;
+  display: flex;
+  left: var(--start);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-duration: calc(200s / var(--speed));
+}
+
+/* .triangle-up:nth-child(1n){ */
+/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 25%)); */
+/* } */
+
+/* .triangle-up:nth-child(2n){ */
+/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 20%)); */
+/* } */
+
+/* .triangle-up:nth-child(3n){ */
+/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 15%)); */
+/* } */
+
+/* .triangle-up:nth-child(4n){ */
+/*   border-bottom-color: hsl(from var(--secondary) h s calc(l - 10%)); */
+/* } */
+
+@keyframes move{
+  0%{
+    transform: translate(-50px, 200px) scale(1);
+  }
+  100%{
+    transform: translate(100%, -100%) scale(1);
+  }
+}
+
+div.triangle-container{
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  margin: -20px;
+  position: absolute;
+  display: flex;
+  /* background-color: var(--darkened-secondary); */
+  border-radius: 10px;
+  z-index: -100;
 }
 
 .lock-inner{

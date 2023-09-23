@@ -143,12 +143,12 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
         }
         div{
             class: "bpm-container",
-            "Old BPM: {bpm}"
+            "Old BPM {bpm}"
         }
         br {}
         div{
             class: "bpm-container",
-            "New BPM: "
+            "New BPM "
             input { 
                 r#type: "number",
                 min: 0,
@@ -249,7 +249,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             div{
                 class: "option-container",
                 title: "Theme: This is the theme that ruso will use, you can also create your own theme by editing custom.css",
-                "Theme: "
+                "Theme "
                 select {
                     class: "theme-selector",
                     value: match settings.read().theme{
@@ -278,7 +278,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             div{
                 class: "option-container",
                 title: "Websocket URL: This is the url of the websocket that ruso will connect to when auto is chosen, you probably don't want to touch this.",
-                "Websocket URL: "
+                "Websocket URL "
                 input {
                     r#type: "text",
                     value: "{settings.read().websocket_url}",
@@ -290,7 +290,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             div{
                 class: "option-container",
                 title: "gosumemory path: This is the path to your gosumemory executable, which ruso requires for auto selection",
-                "gosumemory path: "
+                "gosumemory path "
                 input {
                     r#type: "text",
                     value: "{settings.read().gosumemory_path.display()}",
@@ -314,7 +314,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             div{
                 class: "option-container",
                 title: "Attempt to run gosumemory on startup using given path (requires sudo permissions on linux)",
-                "Run gosumemory on startup: "
+                "Run gosumemory on startup "
                 input {
                     r#type: "checkbox",
                     checked: "{settings.read().gosumemory_startup}",
@@ -328,7 +328,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             div{
                 class: "option-container",
                 title: "Generate .osz files: If checked, ruso generates .osz files instead of .osu files. Enable this if you want a more seamless experience between generating maps with ruso and playing them in osu!",
-                "Generate .osz files: "
+                "Generate .osz files "
                 input {
                     r#type: "checkbox",
                     checked: "{settings.read().generate_osz}",
@@ -342,7 +342,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             div{
                 class: "option-container",
                 title: "osu! songs path: This is the path to your osu! songs folder",
-                "osu! songs path: "
+                "osu! songs path "
                 input {
                     r#type: "text",
                     value: "{settings.read().songs_path.display()}",
@@ -709,21 +709,31 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
                         };
                     }
                 },
+                Triangles{
+                    class_name: "create-triangles",
+                    background_color: "var(--darkened-secondary)",
+                    triangle_range: "var(--secondary)",
+                }
                 "Create map"
             }
             button {
                 class: "reset-button",
                 title: "Reset: Ths will reset the current map settings to the original map settings",
                 onclick: move |_| {
-                let temp_map = map.read().clone();
-                match read_map_metadata(temp_map, &settings.read()){
-                    Ok(k) => *map.write() = k,
-                    Err(e) => {
-                        msg.write().text = Some(format!("Error reading map metadata: {}", e));
-                        msg.write().status = Status::Error;
-                    }
-                };
-            },
+                    let temp_map = map.read().clone();
+                    match read_map_metadata(temp_map, &settings.read()){
+                        Ok(k) => *map.write() = k,
+                        Err(e) => {
+                            msg.write().text = Some(format!("Error reading map metadata: {}", e));
+                            msg.write().status = Status::Error;
+                        }
+                    };
+                },
+                Triangles{
+                    class_name: "reset-triangles",
+                    background_color: "var(--darkened-primary)",
+                    triangle_range: "var(--primary)",
+                }
                 "Reset"
             }
         }
@@ -846,6 +856,96 @@ pub fn MessageBox(cx: Scope) -> Element{
                     }
                 }
             }
+        }
+    })
+}
+
+/// FLoating triangles behind the create and reset buttons
+#[inline_props]
+fn Triangles<'a>(cx: Scope, background_color: &'a str, triangle_range: &'a str, class_name: &'a str) -> Element{
+    cx.render(rsx!{
+        style{
+            r#"       
+            .{class_name}:nth-child(1n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 3%));
+            }}
+
+            .{class_name}:nth-child(2n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 6%));
+            }}
+
+            .{class_name}:nth-child(3n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 9%));
+            }}
+
+            .{class_name}:nth-child(4n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 12%));
+            }}"#
+        }
+        div{
+            class: "triangle-container",
+            style: "background-color: {background_color};",
+            div{ class: "triangle-up {class_name}", style: "--size: 13px; --speed: 61; --start: -8%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 29px; --speed: 60; --start: 23%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 19px; --speed: 59; --start: 54%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 20px; --speed: 58; --start: -1%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 27px; --speed: 57; --start: 18%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 12px; --speed: 56; --start: 59%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 19px; --speed: 55; --start: 94%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 12px; --speed: 54; --start: 24%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 14px; --speed: 53; --start: 83%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 23px; --speed: 52; --start: -2%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 30px; --speed: 51; --start: 47%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 19px; --speed: 1; --start: 2%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 17px; --speed: 2; --start: 75%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 18px; --speed: 3; --start: 34%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 13px; --speed: 4; --start: 99%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 23px; --speed: 5; --start: 3%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 18px; --speed: 6; --start: 71%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 10px; --speed: 7; --start: 14%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 21px; --speed: 8; --start: 17%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 10px; --speed: 9; --start: 18%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 26px; --speed: 10; --start: 19%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 26px; --speed: 11; --start: 67%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 15px; --speed: 12; --start: 95%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 10px; --speed: 13; --start: 29%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 18px; --speed: 14; --start: 10%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 14px; --speed: 15; --start: -21%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 15px; --speed: 16; --start: 32%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 12px; --speed: 17; --start: 91%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 14px; --speed: 18; --start: 36%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 13px; --speed: 19; --start: 64%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 22px; --speed: 20; --start: 27%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 27px; --speed: 21; --start: 42%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 10px; --speed: 22; --start: 78%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 19px; --speed: 23; --start: 46%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 24px; --speed: 24; --start: 21%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 11px; --speed: 25; --start: 42%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 10px; --speed: 26; --start: 0%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 16px; --speed: 27; --start: 54%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 22px; --speed: 28; --start: 76%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 27px; --speed: 29; --start: 58%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 11px; --speed: 30; --start: 23%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 16px; --speed: 31; --start: 62%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 17px; --speed: 32; --start: 69%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 22px; --speed: 33; --start: 34%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 29px; --speed: 34; --start: 68%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 19px; --speed: 35; --start: 70%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 11px; --speed: 36; --start: 72%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 17px; --speed: 37; --start: -3%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 18px; --speed: 38; --start: 76%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 21px; --speed: 39; --start: 78%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 16px; --speed: 40; --start: 21%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 17px; --speed: 41; --start: 82%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 21px; --speed: 42; --start: 34%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 14px; --speed: 43; --start: -4%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 10px; --speed: 44; --start: 76%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 30px; --speed: 45; --start: 47%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 18px; --speed: 46; --start: 92%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 15px; --speed: 47; --start: 18%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 23px; --speed: 48; --start: 57%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 10px; --speed: 49; --start: 31%" }
+            div{ class: "triangle-up {class_name}", style: "--size: 20px; --speed: 50; --start: 58%" }
         }
     })
 }
