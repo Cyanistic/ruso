@@ -15,6 +15,15 @@ pub mod components;
 pub use structs::{MapOptions, Settings};
 use audio::*;
 
+/// Resturns if a number is positive or negative.
+pub fn absoluteify(num: f64) -> f64{
+    if num > 0.0{
+        1.0 
+    }else{
+        -1.0
+    }
+}
+
 /// Reads the data of a .osu map file up to the timing points and returns it as a MapOptions struct.
 pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<MapOptions>{
     let map = libosu::beatmap::Beatmap::parse(BufReader::new(File::open(settings.songs_path.join(&options.map_path))?))?;

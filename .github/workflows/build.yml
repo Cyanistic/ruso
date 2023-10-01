@@ -47,6 +47,11 @@ jobs:
           mv ./target/release/ruso "./target/release/ruso-${{ matrix.rust_target }}"
         if: matrix.platform != 'windows-latest'
         continue-on-error: true
+      - name: Rename duplicate files (macos)
+        run: |
+            mv ./dist/bundle/macos/ruso*.app ./dist/bundle/macos/ruso${{ matrix.rust_target }}.app 
+            mv ./dist/bundle/macos/ruso*.dmg ./dist/bundle/macos/ruso${{ matrix.rust_target }}.dmg 
+        if: matrix.platform == 'macos-latest'
       - name: Upload Release Assets (windows)
         id: upload-release-asset-windows
         uses: softprops/action-gh-release@v1

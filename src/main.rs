@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 use std::{process::{Child, Command}, sync::{Arc, Mutex}, io::Write, path::PathBuf};
 use dioxus::prelude::*;
-use dioxus_desktop::{Config, WindowBuilder, tao::window::Icon, WindowCloseBehaviour, LogicalSize};
+use dioxus_desktop::{Config, WindowBuilder, tao::window::{Icon, Window}, WindowCloseBehaviour, LogicalSize, wry::webview::FileDropEvent};
 mod cli;
 use ruso::{structs::*, components::*,*};
 use serde_json::json;
@@ -37,19 +37,21 @@ async fn main() -> anyhow::Result<()>{
             gosu_process = Arc::new(Some(gosu_startup(&settings)?).into());
         }
 
-        #[cfg(target_os = "windows")]
-        let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.ico").to_vec(), 512, 512).unwrap();
-        #[cfg(target_os = "macos")]
-        let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.icns").to_vec(), 512, 512).unwrap();
-        #[cfg(target_os = "linux")]
-        let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.png").to_vec(), 512, 512).unwrap();
+        // #[cfg(target_os = "windows")]
+        // let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.ico").to_vec(), 512, 512).unwrap();
+        // #[cfg(target_os = "macos")]
+        // let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.icns").to_vec(), 512, 512).unwrap();
+        // #[cfg(target_os = "linux")]
+        // let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.png").to_vec(), 512, 512).unwrap();
+
+        let window_icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.bin").to_vec(), 512, 512).unwrap();
 
         dioxus_desktop::launch_cfg(App,
             Config::default()
                 .with_resource_directory(PathBuf::from("assets"))
                 .with_data_directory(dirs::data_dir().unwrap())
                 .with_close_behaviour(WindowCloseBehaviour::LastWindowExitsApp)
-                .with_background_color((0,0,0,0))
+                .with_background_color((0,0,0,255))
                 .with_icon(window_icon.clone())
                 .with_disable_context_menu(false)
                 .with_window(WindowBuilder::new()
@@ -57,6 +59,9 @@ async fn main() -> anyhow::Result<()>{
                     .with_maximizable(true)
                     .with_resizable(true)
                     .with_title("ruso!")
+                    // Using bin file since png doesn't work for some reason
+                    .with_window_icon(Some(Icon::from_rgba(include_bytes!("../assets/icons/icon.bin").to_vec(), 512, 512).unwrap()))
+                    .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
                     .with_min_inner_size(LogicalSize::new(400.0, 500.0))
                     .with_inner_size(LogicalSize::new(427.0, 531.0))
                 )

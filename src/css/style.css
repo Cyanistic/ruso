@@ -33,6 +33,7 @@ button:hover{
 h1, h2{
   margin-top: 2px;
   margin-bottom: 2px;
+  text-align: center;
 }
 
 div.slider-container{

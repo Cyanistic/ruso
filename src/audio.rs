@@ -37,6 +37,7 @@ pub fn change_speed_ogg(path: &PathBuf, rate: f64) -> Result<()>{
     while let Some(decoded_block) = decoder.decode_audio_block()? {
         encoder.encode_audio_block(decoded_block.samples())?;
     }
+
     encoder.finish()?;
     File::create(format!("{}({}).ogg", path.parent().unwrap().join(path.file_stem().unwrap()).display(), rate))?.write_all(transcoded_ogg.as_slice())?;
     Ok(())
@@ -53,25 +54,25 @@ pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
     encoder.set_quality(mp3lame_encoder::Quality::Best).unwrap();
     encoder.set_mode(mp3lame_encoder::Mode::Stereo).unwrap();
 
-    match mp3_headers.bitrate {
-        _ if mp3_headers.bitrate >= 320 => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps320).unwrap(),
-        _ if mp3_headers.bitrate >= 256 => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps256).unwrap(),
-        _ if mp3_headers.bitrate >= 224 => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps224).unwrap(),
-        _ if mp3_headers.bitrate >= 192 => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps192).unwrap(),
-        _ if mp3_headers.bitrate >= 160 => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps160).unwrap(),
-        _ if mp3_headers.bitrate >= 128 => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps128).unwrap(),
-        _ if mp3_headers.bitrate >= 112 => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps112).unwrap(),
-        _ if mp3_headers.bitrate >= 96  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps96).unwrap(),
-        _ if mp3_headers.bitrate >= 80  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps80).unwrap(),
-        _ if mp3_headers.bitrate >= 64  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps64).unwrap(),
-        _ if mp3_headers.bitrate >= 48  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps48).unwrap(),
-        _ if mp3_headers.bitrate >= 40  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps40).unwrap(),
-        _ if mp3_headers.bitrate >= 32  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps32).unwrap(),
-        _ if mp3_headers.bitrate >= 24  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps24).unwrap(),
-        _ if mp3_headers.bitrate >= 16  => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps16).unwrap(),
-        _ if mp3_headers.bitrate >= 8   => encoder.set_brate(mp3lame_encoder::Bitrate::Kbps8).unwrap(),
-        _ => ()
-    };
+    encoder.set_brate(match mp3_headers.bitrate {
+        _ if mp3_headers.bitrate >= 320 => mp3lame_encoder::Bitrate::Kbps320,
+        _ if mp3_headers.bitrate >= 256 => mp3lame_encoder::Bitrate::Kbps256,
+        _ if mp3_headers.bitrate >= 224 => mp3lame_encoder::Bitrate::Kbps224,
+        _ if mp3_headers.bitrate >= 192 => mp3lame_encoder::Bitrate::Kbps192,
+        _ if mp3_headers.bitrate >= 160 => mp3lame_encoder::Bitrate::Kbps160,
+        _ if mp3_headers.bitrate >= 128 => mp3lame_encoder::Bitrate::Kbps128,
+        _ if mp3_headers.bitrate >= 112 => mp3lame_encoder::Bitrate::Kbps112,
+        _ if mp3_headers.bitrate >= 96  => mp3lame_encoder::Bitrate::Kbps96,
+        _ if mp3_headers.bitrate >= 80  => mp3lame_encoder::Bitrate::Kbps80,
+        _ if mp3_headers.bitrate >= 64  => mp3lame_encoder::Bitrate::Kbps64,
+        _ if mp3_headers.bitrate >= 48  => mp3lame_encoder::Bitrate::Kbps48,
+        _ if mp3_headers.bitrate >= 40  => mp3lame_encoder::Bitrate::Kbps40,
+        _ if mp3_headers.bitrate >= 32  => mp3lame_encoder::Bitrate::Kbps32,
+        _ if mp3_headers.bitrate >= 24  => mp3lame_encoder::Bitrate::Kbps24,
+        _ if mp3_headers.bitrate >= 16  => mp3lame_encoder::Bitrate::Kbps16,
+        _ if mp3_headers.bitrate >= 8   => mp3lame_encoder::Bitrate::Kbps8,
+        _ => mp3lame_encoder::Bitrate::Kbps96,
+    }).unwrap();
 
     if let Ok(tag) = tag{
         let year: Box<[u8]> = if let Some(year) = tag.year(){

@@ -21,7 +21,7 @@ pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 class: "slider generic-slider",
                 id: "{cx.props.acronym}",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(cx.props.read - ev.data.delta().strip_units().y / 1500.0, 2);
+                    let mut temp_val = round_dec(cx.props.read - (absoluteify(ev.data.delta().strip_units().y)/10.0), 2);
                     if temp_val > 10.0 {
                         temp_val  = 10.0;
                     } else if temp_val < 0.0 {
@@ -41,7 +41,7 @@ pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 value: "{cx.props.read}",
                 id: "{cx.props.acronym}_number",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(cx.props.read - ev.data.delta().strip_units().y / 1750.0, 2);
+                    let mut temp_val = round_dec(cx.props.read - (absoluteify(ev.data.delta().strip_units().y)/10.0), 2);
                     if temp_val > 10.0 {
                         temp_val  = 10.0;
                     } else if temp_val < 0.0 {
@@ -97,7 +97,7 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
                 class: "slider",
                 id: "Rate",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3500.0, 2);
+                    let mut temp_val = round_dec(*value.get() - (absoluteify(ev.data.delta().strip_units().y)/20.0), 2);
                     if temp_val > 10.0 {
                         temp_val = 10.0;
                     } else if temp_val < 0.05 {
@@ -119,7 +119,8 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
                 value: round_dec(*value.get(), 2),
                 id: "Rate_number",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3500.0, 2);
+                    let mut temp_val = round_dec(*value.get() - (absoluteify(ev.data.delta().strip_units().y)/20.0), 2);
+                    println!("{}", ev.data.delta().strip_units().y);
                     if temp_val > 40.0 {
                         temp_val = 40.0;
                     } else if temp_val < 0.05 {
@@ -529,6 +530,10 @@ pub fn ManualTab(cx: Scope) -> Element{
             if *settings.read().songs_path == PathBuf::new(){
                 rsx!{
                     h2 { "Choose your osu Songs directory in the Settings tab!" }
+                }
+            }else if map.read().map_path == PathBuf::new(){
+                rsx!{
+                    h2 { "Choose a map to modify!" }
                 }
             }
             div {            

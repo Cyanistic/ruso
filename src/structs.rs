@@ -1,7 +1,20 @@
 use dioxus::prelude::*;
-use std::{path::PathBuf, io::{ErrorKind, Write}, fs::File};
+use std::{path::PathBuf, io::{ErrorKind, Write}, fs::File, rc::Rc, cell::Cell};
 use libosu::data::Mode;
 use serde::{Serialize, Deserialize};
+
+// #[derive(Clone)]
+// pub struct AppProps<'a>{
+//     pub dropped_file: Rc<Cell<Option<&'a PathBuf>>>
+// }
+
+// impl AppProps<'_>{
+//     pub fn new() -> Self{
+//         AppProps{
+//             dropped_file: Rc::new(Cell::new(None))
+//         }
+//     }
+// }
 
 #[derive(Clone, Debug, Props, PartialEq)]
 pub struct MapOptions{
