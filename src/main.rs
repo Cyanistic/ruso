@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()>{
                     .with_resizable(true)
                     .with_title("ruso!")
                     // Using bin file since png doesn't work for some reason
-                    .with_window_icon(Some(Icon::from_rgba(include_bytes!("../assets/icons/icon.bin").to_vec(), 512, 512).unwrap()))
+                    .with_window_icon(Some(window_icon))
                     .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
                     .with_min_inner_size(LogicalSize::new(400.0, 500.0))
                     .with_inner_size(LogicalSize::new(427.0, 531.0))

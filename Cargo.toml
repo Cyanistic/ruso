@@ -1,19 +1,18 @@
 [package]
-name = "ruso"
-author = "Cyanism"
-version = "0.1.0"
-edition = "2021"
-license = "GPL-3.0"
+authors = ["Cyanism <github@cyan.slmail.me>"]
 description = "A cross-platform CLI and GUI application to easily modify osu! beatmap parameters."
+edition = "2021"
+homepage = "https://github.com/Cyanistic/ruso"
+keywords = ["osu", "utility", "cli", "gui"]
+license = "GPL-3.0"
+name = "ruso"
 readme = "README.md"
-keywords = ["osu"]
 repository = "https://github.com/Cyanistic/ruso"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version = "0.1.0"
 
 [profile.release]
 opt-level = 3
-# lto = true
+lto = true
 codegen-units = 1
 panic = "unwind"
 strip = "symbols"
