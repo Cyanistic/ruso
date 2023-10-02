@@ -17,7 +17,7 @@ button{
   color: var(--text-secondary);
   background-color: var(--secondary);
   font-weight: bold;
-  font-size: 1rem;
+  font-size: clamp(1rem, 2.2vh, 1.5rem);
   outline: none;
   border: 3px solid transparent;
   appearance: none;
@@ -129,6 +129,25 @@ button.tab-button:hover{
 
 div.bpm-grid{
   display: grid;
+  column-gap: clamp(1rem, 2vw, 2rem);
+  justify-content: start;
+  grid-template-areas: 
+    "bpm-label bpm-input"
+    "bpm-label bpm-input";
+}
+
+div.bpm-container{
+  grid-area: "bpm-label";
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+div.bpm-input{
+  grid-area: "bpm-input";
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
 div.button-container{
@@ -171,6 +190,7 @@ button.reset-button:hover{
 div.status-message{
   background-color: rgba(0,0,0,0.6);
   color: var(--text-secondary);
+  font-size: clamp(1rem, 2.2vh, 1.5rem);
   border-radius: 20px;
   padding: 5px;
 }
@@ -225,7 +245,7 @@ div.map-image{
   top: 8px;
   right: 16px;
   text-overflow: ellipsis;
-  max-width: 80vw;
+  max-width: 60vw;
 }
 
 @media(max-width: 400px){
@@ -345,3 +365,4 @@ div.close-button{
 div.message-box{
   position: relative;
 }
+

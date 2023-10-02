@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+#![allow(non_snake_case)]
+use std::{path::PathBuf, time::Duration};
 use dioxus::prelude::*;
 use tokio_tungstenite::{connect_async, tungstenite::Error};
 use serde_json::from_str;
@@ -144,37 +145,41 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
         div{
             class: "bpm-grid",
             div{
-                class: "bpm-container",
-                "Old BPM {bpm}"
+                class: "bpm-label",
+                "Old BPM "
             }
-            br {}
             div{
-                class: "bpm-container",
+                class: "bpm-input",
+                "{bpm}"
+            }
+            div{
+                class: "bpm-label",
                 "New BPM "
-                input { 
-                    r#type: "number",
-                    min: 0,
-                    max: f64::MAX,
-                    step: 1,
-                    value: "{new_bpm}",
-                    id: "bpm_number",
-                    onwheel: move |ev|{
-                        let mut temp_val = round_dec(*value.get() - ev.data.delta().strip_units().y / 3000.0, 2);
-                        if temp_val > 40.0 {
-                            temp_val = 40.0;
-                        } else if temp_val < 0.05 {
-                            temp_val = 0.05;
-                        }
-                        value.set(temp_val);
-                        cx.props.on_event.call(temp_val);
-                    },
-                    onchange: move |ev|{
-                        let temp_val = ev.data.value.parse::<usize>().unwrap_or(new_bpm);
-                        let new_rate = temp_val as f64 / *bpm as f64;
-                        value.set(new_rate);
-                        cx.props.on_event.call(new_rate);
-                    },
-                }
+            }
+            input { 
+                r#type: "number",
+                min: 0,
+                max: f64::MAX,
+                step: 1,
+                value: "{new_bpm}",
+                class: "bpm-input",
+                id: "bpm_number",
+                onwheel: move |ev|{
+                    let mut temp_val = round_dec(*value.get() - (absoluteify(ev.data.delta().strip_units().y)/20.0), 2);
+                    if temp_val > 40.0 {
+                        temp_val = 40.0;
+                    } else if temp_val < 0.05 {
+                        temp_val = 0.05;
+                    }
+                    value.set(temp_val);
+                    cx.props.on_event.call(temp_val);
+                },
+                onchange: move |ev|{
+                    let temp_val = ev.data.value.parse::<usize>().unwrap_or(new_bpm);
+                    let new_rate = temp_val as f64 / *bpm as f64;
+                    value.set(new_rate);
+                    cx.props.on_event.call(new_rate);
+                },
             }
         }
     })
@@ -513,10 +518,6 @@ pub fn AutoTab(cx: Scope) -> Element{
         }
     });
     cx.render(rsx!{
-        // h1 {
-        //     style: "text-align: center;",
-        //     "Auto"
-        // }
         MapOptionsComponent{}
     })
 }
@@ -691,31 +692,37 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
             button {
                 class: "create-button",
                 title: "Create map: This will create a map with the settings you have chosen, you can then play the map in osu!",
-                onclick: move |_|{
-                    if map.read().rate != 1.0{
-                        match generate_map(&map.read(), &settings.read()){
-                            Ok(_) => {
-                                msg.write().text = Some("Map created successfully!".to_string());
-                                msg.write().status = Status::Success;
-                            },
-                            Err(e) => {
-                                msg.write().text = Some(format!("Error creating map: {}", e));
-                                msg.write().status = Status::Error;
-                            }
-                        };
-                    }else{
-                        match change_map_difficulty(&map.read(), &settings.read()){
-                            Ok(_) => {
-                                msg.write().text = Some("Map created successfully!".to_string());
-                                msg.write().status = Status::Success;
-                            },
-                            Err(e) => {
-                                msg.write().text = Some(format!("Error creating map: {}", e));
-                                msg.write().status = Status::Error;
-                            }
-                        };
+                onclick: move |_| cx.spawn({
+                    msg.write().text = Some("Generating map...".to_string());
+                    msg.write().status = Status::Success;
+                    to_owned![map, settings, msg];
+                    async move{
+                        tokio::time::sleep(Duration::from_millis(100)).await; // Wait so the message can be displayed
+                        if map.read().rate != 1.0{
+                            match generate_map(&map.read(), &settings.read()){
+                                Ok(_) => {
+                                    msg.write().text = Some("Map created successfully!".to_string());
+                                    msg.write().status = Status::Success;
+                                },
+                                Err(e) => {
+                                    msg.write().text = Some(format!("Error creating map: {}", e));
+                                    msg.write().status = Status::Error;
+                                }
+                            };
+                        }else{
+                            match change_map_difficulty(&map.read(), &settings.read()){
+                                Ok(_) => {
+                                    msg.write().text = Some("Map created successfully!".to_string());
+                                    msg.write().status = Status::Success;
+                                },
+                                Err(e) => {
+                                    msg.write().text = Some(format!("Error creating map: {}", e));
+                                    msg.write().status = Status::Error;
+                                }
+                            };
+                        }
                     }
-                },
+                }),
                 Triangles{
                     class_name: "create-triangles",
                     background_color: "var(--darkened-secondary)",

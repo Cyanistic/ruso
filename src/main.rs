@@ -56,12 +56,11 @@ async fn main() -> anyhow::Result<()>{
                 .with_disable_context_menu(false)
                 .with_window(WindowBuilder::new()
                     .with_maximizable(true)
-                    .with_maximizable(true)
                     .with_resizable(true)
                     .with_title("ruso!")
                     // Using bin file since png doesn't work for some reason
                     .with_window_icon(Some(window_icon))
-                    .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
+                    // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
                     .with_min_inner_size(LogicalSize::new(400.0, 500.0))
                     .with_inner_size(LogicalSize::new(427.0, 531.0))
                 )
