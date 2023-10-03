@@ -67,7 +67,7 @@ pub fn read_map_metadata(options: MapOptions, settings: &Settings) -> Result<Map
 }
 
 /// Generates an audio and .osu file using the given Settings and MapOptions structs.
-pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
+pub async fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     let path = &settngs.songs_path.join(&map.map_path);
     let rate = map.rate;
     let map_file = File::open(path)?;
@@ -96,7 +96,7 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
 
     // Change beatmap properties to match those given by the user
     map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
-    map_data.difficulty_name += format!(" {}x ({}bpm)",rate, map.bpm).as_str(); 
+    map_data.difficulty_name += format!(" {}x ({}bpm)", rate, (map.bpm as f64 * rate) as usize).as_str(); 
     map_data.difficulty.approach_rate = map.approach_rate as f32;
     map_data.difficulty.circle_size = map.circle_size as f32;
     map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
@@ -107,7 +107,7 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     // Create a new variable to pass the audio path to another thread
     // and generate the audio file on that thread
     let audio_closure = audio_path.clone();
-    let audio_thread = std::thread::spawn(move || {
+    let audio_thread = tokio::task::spawn(async move{
         generate_audio(&audio_closure, rate)
     });
 
@@ -138,7 +138,7 @@ pub fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     let new_audio_path = PathBuf::from(format!("{}({}).{}", audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap()));
 
     // Wait for the audio threat to finish and return an error if something went wrong
-    if let Err(e) = audio_thread.join(){
+    if let Err(e) = audio_thread.await{
         return Err(anyhow::anyhow!("Error generating audio file: {:?}", e))
     }
     
@@ -307,9 +307,9 @@ pub fn calculate_space(file_name: &str) -> Result<usize>{
         Err(_) => 0
     }).sum();
 
-    let mut cache_file = match OpenOptions::new().write(true).open(cache.join("used_space.txt")){
+    let mut cache_file = match OpenOptions::new().write(true).open(cache.join(file_name)){
         Ok(k) => k,
-        Err(e) if e.kind() == ErrorKind::NotFound => File::create(cache.join("used_space.txt"))?,
+        Err(e) if e.kind() == ErrorKind::NotFound => File::create(cache.join(file_name))?,
         Err(e) => return Err(anyhow::anyhow!("Error opening used_space.txt: {}", e))
     };
 
@@ -325,7 +325,7 @@ pub fn read_space(file_name: &str) -> Result<usize>{
         None => return Err(anyhow::anyhow!("Couldn't find cache directory"))
     }.join("ruso");
     
-    Ok(match std::fs::read_to_string(cache.join("used_space.txt")){
+    Ok(match std::fs::read_to_string(cache.join(file_name)){
         Ok(k) => k.parse::<usize>()?,
         Err(e) if e.kind() == ErrorKind::NotFound => 0,
         Err(e) => return Err(anyhow::anyhow!("Error reading used space cache: {}", e))

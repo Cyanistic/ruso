@@ -1,10 +1,10 @@
 #![allow(non_snake_case)]
-use std::{process::{Child, Command}, sync::{Arc, Mutex}, io::Write, path::PathBuf};
+#![windows_subsystem = "windows"]
+use std::{process::{Child, Command}, sync::{Arc, Mutex}, path::PathBuf};
 use dioxus::prelude::*;
-use dioxus_desktop::{Config, WindowBuilder, tao::window::{Icon, Window}, WindowCloseBehaviour, LogicalSize, wry::webview::FileDropEvent};
+use dioxus_desktop::{Config, WindowBuilder, tao::window::Icon, WindowCloseBehaviour, LogicalSize};
 mod cli;
 use ruso::{structs::*, components::*,*};
-use serde_json::json;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()>{
                         .with_window_icon(Some(window_icon))
                         // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
                         .with_min_inner_size(LogicalSize::new(400.0, 500.0))
-                        .with_inner_size(LogicalSize::new(427.0, 531.0))
+                        .with_inner_size(LogicalSize::new(500.0, 600.0))
                     )
                 ),
             Err(_) => dioxus_desktop::launch_cfg(App,
@@ -77,7 +77,6 @@ async fn main() -> anyhow::Result<()>{
                         .with_maximizable(true)
                         .with_resizable(true)
                         .with_title("ruso!")
-                        // Using bin file since png doesn't work for some reason
                         // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
                         .with_min_inner_size(LogicalSize::new(400.0, 500.0))
                         .with_inner_size(LogicalSize::new(427.0, 531.0))
@@ -119,7 +118,7 @@ fn App(cx: Scope) -> Element {
                                 style{ k }
                                 },
                         Err(e) => {
-                            // msg.write().text = Some(format!("Could not read custom.css: {:?}. Reverting to dark theme.", e));
+                            // msg.write().text = Some(format!("Could not read custom.css: {}. Reverting to dark theme.", e));
                             // msg.write().status = Status::Error;
                             rsx!{
                                 style { include_str!("css/dark.css") }

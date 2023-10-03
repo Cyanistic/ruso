@@ -129,7 +129,10 @@ button.tab-button:hover{
 
 div.bpm-grid{
   display: grid;
+  padding-top: 0.25rem;
+  padding-bottom: 0.5rem;
   column-gap: clamp(1rem, 2vw, 2rem);
+  row-gap: 0.5rem;
   justify-content: start;
   grid-template-areas: 
     "bpm-label bpm-input"
@@ -151,7 +154,6 @@ div.bpm-input{
 }
 
 div.button-container{
-  padding-top: 10px;
   display: flex;
   height: 20vh;
   min-width: 10px;

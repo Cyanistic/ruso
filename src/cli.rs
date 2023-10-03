@@ -9,7 +9,9 @@ use tokio_tungstenite::connect_async;
 /// Entry point for cli
 pub async fn run() -> Result<()>{
     // Reset the SIGPIPE handler to the default one to allow for proper unix piping
-    reset_sigpipe();
+    if cfg!(unix) {
+        reset_sigpipe();
+    }
 
     let args = Vec::from_iter(std::env::args());
     let mut args = args.iter().skip(1).map(AsRef::as_ref).collect::<Vec<&str>>();
@@ -160,7 +162,7 @@ pub async fn run() -> Result<()>{
     // with paths in cwd and paths that start with the provided osu! songs path.
     settings.songs_path = PathBuf::new();
     writeln!(stderr(), "Generating map...")?;
-    generate_map(&map, &settings)?;
+    generate_map(&map, &settings).await?;
 
     // Fix terminal carriage return
     if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
@@ -227,7 +229,6 @@ fn print_help(){
 async fn path_from_gosu(settings: &Settings) -> Result<PathBuf>{
     let (socket, _) = connect_async(&settings.websocket_url).await?;
     let ( _, mut read) = socket.split();
-
     match read.next().await{
         Some(message) => {
             let message = message?;
@@ -261,9 +262,4 @@ fn reset_sigpipe() {
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
-}
-
-#[cfg(not(unix))]
-fn reset_sigpipe() {
-    // no-op
 }

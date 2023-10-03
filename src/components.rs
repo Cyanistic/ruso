@@ -81,7 +81,7 @@ pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
 }
 
 #[inline_props]
-pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, rate: f64) -> Element{
+pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) -> Element{
     let value = use_state(cx, || 1.0);
     let new_bpm = (*bpm as f64 * *value.get()).round() as usize;
     
@@ -121,7 +121,6 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
                 id: "Rate_number",
                 onwheel: move |ev|{
                     let mut temp_val = round_dec(*value.get() - (absoluteify(ev.data.delta().strip_units().y)/20.0), 2);
-                    println!("{}", ev.data.delta().strip_units().y);
                     if temp_val > 40.0 {
                         temp_val = 40.0;
                     } else if temp_val < 0.05 {
@@ -186,7 +185,6 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize, ra
 }
 
 pub fn SettingsTab(cx: Scope) -> Element{
-    let map = use_shared_state::<MapOptions>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
     let used_space = use_state(cx, || match read_space("used_space.txt"){
@@ -443,7 +441,7 @@ pub fn AutoTab(cx: Scope) -> Element{
             // on the main thread
             let outer_local = tokio::task::LocalSet::new();
             outer_local.run_until( async move{
-                tokio::task::spawn_local( async move{
+                let _ = tokio::task::spawn_local( async move{
                     loop{
                         to_owned![map, settings, msg];
                         let settings_url = match url::Url::parse(settings.read().websocket_url.clone().as_str()){
@@ -463,7 +461,7 @@ pub fn AutoTab(cx: Scope) -> Element{
                                 k
                             },
                             Err(Error::Io(e)) if e.kind() == ErrorKind::ConnectionRefused => {
-                                msg.write().text = Some(format!("Error connecting to websocket. Is gosumemory running with the websocket url set in settings?"));
+                                msg.write().text = Some("Error connecting to websocket. Is gosumemory running with the websocket url set in settings?".to_string());
                                 msg.write().status = Status::Error;
                                 eprintln!("Error connecting to websocket. Is gosumemory running? Retrying in 1 second");
                                 tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
@@ -490,8 +488,8 @@ pub fn AutoTab(cx: Scope) -> Element{
                                             let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
                                             if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
                                                 map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
-                                                if settings.read().songs_path != PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap()){
-
+                                                if settings.read().songs_path == PathBuf::new() {
+                                                    settings.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
                                                 }
                                                 let temp_map = map.read().clone();
                                                 *map.write() = match read_map_metadata(temp_map, &settings.read()){
@@ -517,6 +515,7 @@ pub fn AutoTab(cx: Scope) -> Element{
             }).await;
         }
     });
+
     cx.render(rsx!{
         MapOptionsComponent{}
     })
@@ -525,7 +524,6 @@ pub fn AutoTab(cx: Scope) -> Element{
 pub fn ManualTab(cx: Scope) -> Element{
     let map = use_shared_state::<MapOptions>(cx)?;
     let settings = use_shared_state::<Settings>(cx)?;
-    let msg = use_shared_state::<StatusMessage>(cx)?;
     
     cx.render(rsx!{
             if *settings.read().songs_path == PathBuf::new(){
@@ -548,6 +546,7 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
     let settings = use_shared_state::<Settings>(cx)?;
     let msg = use_shared_state::<StatusMessage>(cx)?;
     let tab = use_shared_state::<Tab>(cx)?;
+    let generating_map = use_state(cx, || false);
 
     // Determine image path for background image
     let bg_path = use_memo(cx, &(map.read().background), |bg|{
@@ -683,7 +682,7 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
             RateSlider {
                 bpm: map.read().bpm,
                 on_event: move |ev| map.write().rate = ev,
-                rate: map.read().rate
+                // rate: map.read().rate
             }
         }
         div {
@@ -692,37 +691,41 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
             button {
                 class: "create-button",
                 title: "Create map: This will create a map with the settings you have chosen, you can then play the map in osu!",
-                onclick: move |_| cx.spawn({
-                    msg.write().text = Some("Generating map...".to_string());
-                    msg.write().status = Status::Success;
-                    to_owned![map, settings, msg];
-                    async move{
-                        tokio::time::sleep(Duration::from_millis(100)).await; // Wait so the message can be displayed
-                        if map.read().rate != 1.0{
-                            match generate_map(&map.read(), &settings.read()){
-                                Ok(_) => {
-                                    msg.write().text = Some("Map created successfully!".to_string());
-                                    msg.write().status = Status::Success;
-                                },
-                                Err(e) => {
-                                    msg.write().text = Some(format!("Error creating map: {}", e));
-                                    msg.write().status = Status::Error;
-                                }
-                            };
-                        }else{
-                            match change_map_difficulty(&map.read(), &settings.read()){
-                                Ok(_) => {
-                                    msg.write().text = Some("Map created successfully!".to_string());
-                                    msg.write().status = Status::Success;
-                                },
-                                Err(e) => {
-                                    msg.write().text = Some(format!("Error creating map: {}", e));
-                                    msg.write().status = Status::Error;
-                                }
-                            };
+                onclick: move |_| if !*generating_map.get(){
+                    cx.spawn({
+                        generating_map.set(true);
+                        msg.write().text = Some("Please wait, generating map...".to_string());
+                        msg.write().status = Status::Success;
+                        to_owned![map, settings, msg, generating_map];
+                        async move{
+                            tokio::time::sleep(Duration::from_millis(100)).await; // Wait so the message can be displayed
+                            if map.read().rate != 1.0{
+                                match generate_map(&map.read(), &settings.read()).await{
+                                    Ok(_) => {
+                                        msg.write().text = Some("Map created successfully!".to_string());
+                                        msg.write().status = Status::Success;
+                                    },
+                                    Err(e) => {
+                                        msg.write().text = Some(format!("Error creating map: {}", e));
+                                        msg.write().status = Status::Error;
+                                    }
+                                };
+                            }else{
+                                match change_map_difficulty(&map.read(), &settings.read()){
+                                    Ok(_) => {
+                                        msg.write().text = Some("Map created successfully!".to_string());
+                                        msg.write().status = Status::Success;
+                                    },
+                                    Err(e) => {
+                                        msg.write().text = Some(format!("Error creating map: {}", e));
+                                        msg.write().status = Status::Error;
+                                    }
+                                };
+                            }
+                            generating_map.set(false);
                         }
-                    }
-                }),
+                    })
+                },
                 Triangles{
                     class_name: "create-triangles",
                     background_color: "var(--darkened-secondary)",
@@ -883,20 +886,53 @@ fn Triangles<'a>(cx: Scope, background_color: &'a str, triangle_range: &'a str, 
         style{
             r#"       
             .{class_name}:nth-child(1n){{
-              border-bottom-color: hsl(from {triangle_range} h s calc(l - 3%));
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 2%));
             }}
 
             .{class_name}:nth-child(2n){{
-              border-bottom-color: hsl(from {triangle_range} h s calc(l - 6%));
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 4%));
             }}
 
             .{class_name}:nth-child(3n){{
-              border-bottom-color: hsl(from {triangle_range} h s calc(l - 9%));
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 6%));
             }}
 
             .{class_name}:nth-child(4n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 8%));
+            }}
+
+            .{class_name}:nth-child(5n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l - 10%));
+            }}
+
+            .{class_name}:nth-child(6n){{
               border-bottom-color: hsl(from {triangle_range} h s calc(l - 12%));
-            }}"#
+            }}
+
+            .{class_name}:nth-child(7n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l + 2%));
+            }}
+
+            .{class_name}:nth-child(8n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l + 4%));
+            }}
+
+            .{class_name}:nth-child(9n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l + 6%));
+            }}
+
+            .{class_name}:nth-child(10n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l + 8%));
+            }}
+
+            .{class_name}:nth-child(11n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l + 10%));
+            }}
+
+            .{class_name}:nth-child(12n){{
+              border-bottom-color: hsl(from {triangle_range} h s calc(l + 12%));
+            }}
+        "#
         }
         div{
             class: "triangle-container",

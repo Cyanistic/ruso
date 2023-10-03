@@ -11,7 +11,11 @@
 </div>
 
 ## Preview
-<p align="center"> <img src="assets/ruso-preview.png" alt-text="ruso-preview"></p>
+<p align="center"> 
+    <img src="assets/ruso-preview.png" alt-text="ruso-preview">
+    <video alt-text="ruso-video" src="https://github.com/Cyanistic/ruso/assets/61608977/9d873855-38a4-4ca5-b186-fe66d65b2693"></video>
+</p>
+
 
 ## Features
 - Change the approach rate, circle size, hp drain, overall difficulty, and playback rate of any osu! beatmap
