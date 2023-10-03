@@ -44,28 +44,46 @@ async fn main() -> anyhow::Result<()>{
         // #[cfg(target_os = "linux")]
         // let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.png").to_vec(), 512, 512).unwrap();
 
-        let window_icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.bin").to_vec(), 512, 512).unwrap();
-
-        dioxus_desktop::launch_cfg(App,
-            Config::default()
-                .with_resource_directory(PathBuf::from("assets"))
-                .with_data_directory(dirs::data_dir().unwrap())
-                .with_close_behaviour(WindowCloseBehaviour::LastWindowExitsApp)
-                .with_background_color((0,0,0,255))
-                .with_icon(window_icon.clone())
-                .with_disable_context_menu(false)
-                .with_window(WindowBuilder::new()
-                    .with_maximizable(true)
-                    .with_resizable(true)
-                    .with_title("ruso!")
-                    // Using bin file since png doesn't work for some reason
-                    .with_window_icon(Some(window_icon))
-                    // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
-                    .with_min_inner_size(LogicalSize::new(400.0, 500.0))
-                    .with_inner_size(LogicalSize::new(427.0, 531.0))
-                )
-        );
+        let window_icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.bin").to_vec(), 512, 512);
         
+        match window_icon{
+            Ok(window_icon) => dioxus_desktop::launch_cfg(App,
+                Config::default()
+                    .with_resource_directory(PathBuf::from("assets"))
+                    .with_data_directory(dirs::data_dir().unwrap())
+                    .with_close_behaviour(WindowCloseBehaviour::LastWindowExitsApp)
+                    .with_background_color((0,0,0,255))
+                    .with_icon(window_icon.clone())
+                    .with_disable_context_menu(false)
+                    .with_window(WindowBuilder::new()
+                        .with_maximizable(true)
+                        .with_resizable(true)
+                        .with_title("ruso!")
+                        // Using bin file since png doesn't work for some reason
+                        .with_window_icon(Some(window_icon))
+                        // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
+                        .with_min_inner_size(LogicalSize::new(400.0, 500.0))
+                        .with_inner_size(LogicalSize::new(427.0, 531.0))
+                    )
+                ),
+            Err(_) => dioxus_desktop::launch_cfg(App,
+                Config::default()
+                    .with_resource_directory(PathBuf::from("assets"))
+                    .with_data_directory(dirs::data_dir().unwrap())
+                    .with_close_behaviour(WindowCloseBehaviour::LastWindowExitsApp)
+                    .with_background_color((0,0,0,255))
+                    .with_disable_context_menu(false)
+                    .with_window(WindowBuilder::new()
+                        .with_maximizable(true)
+                        .with_resizable(true)
+                        .with_title("ruso!")
+                        // Using bin file since png doesn't work for some reason
+                        // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
+                        .with_min_inner_size(LogicalSize::new(400.0, 500.0))
+                        .with_inner_size(LogicalSize::new(427.0, 531.0))
+                    )
+                )
+        };
     }
     
     Ok(())
