@@ -141,6 +141,7 @@ pub async fn run() -> Result<()>{
     }
 
     // Kill gosumemory if it was started by ruso
+    #[allow(unused_mut)]
     if let Some(mut process) = gosu_process{
         #[cfg(not(unix))]
         process.kill().unwrap_or_else(|_| {writeln!(stderr(), "Could not kill spawned gosumemory process");});

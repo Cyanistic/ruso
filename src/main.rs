@@ -1,4 +1,4 @@
-#![allow(non_snake_case)]
+#![allow(non_snake_case, clippy::redundant_closure)]
 #![windows_subsystem = "windows"]
 use std::{process::{Child, Command}, sync::{Arc, Mutex}, path::PathBuf};
 use dioxus::prelude::*;
@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()>{
                         .with_window_icon(Some(window_icon))
                         // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
                         .with_min_inner_size(LogicalSize::new(400.0, 500.0))
-                        .with_inner_size(LogicalSize::new(500.0, 600.0))
+                        .with_inner_size(LogicalSize::new(550.0, 650.0))
                     )
                 ),
             Err(_) => dioxus_desktop::launch_cfg(App,
@@ -79,7 +79,7 @@ async fn main() -> anyhow::Result<()>{
                         .with_title("ruso!")
                         // .with_max_inner_size(LogicalSize::new(1100.0, 800.0))
                         .with_min_inner_size(LogicalSize::new(400.0, 500.0))
-                        .with_inner_size(LogicalSize::new(427.0, 531.0))
+                        .with_inner_size(LogicalSize::new(550.0, 650.0))
                     )
                 )
         };
@@ -117,9 +117,7 @@ fn App(cx: Scope) -> Element {
                         Ok(k) => rsx!{
                                 style{ k }
                                 },
-                        Err(e) => {
-                            // msg.write().text = Some(format!("Could not read custom.css: {}. Reverting to dark theme.", e));
-                            // msg.write().status = Status::Error;
+                        Err(_) => {
                             rsx!{
                                 style { include_str!("css/dark.css") }
                             }
