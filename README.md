@@ -13,7 +13,7 @@
 ## Preview
 <p align="center"> 
     <img src="assets/ruso-preview.png" alt-text="ruso-preview"/>
-    <video alt-text="ruso-video" src="https://github.com/Cyanistic/ruso/assets/61608977/9d873855-38a4-4ca5-b186-fe66d65b2693"></video>
+    <!-- <video alt-text="ruso-video" src="https://github.com/Cyanistic/ruso/assets/61608977/9d873855-38a4-4ca5-b186-fe66d65b2693"></video> -->
 </p>
 
 
