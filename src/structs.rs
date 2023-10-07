@@ -1,7 +1,10 @@
+use anyhow::Result;
 use dioxus::prelude::*;
-use std::{path::PathBuf, io::{ErrorKind, Write}, fs::File};
-use libosu::data::Mode;
+use std::{path::PathBuf, io::{ErrorKind, Write, BufReader}, fs::File};
+use libosu::{data::Mode, events::Event::Background};
+use rosu_pp::BeatmapExt;
 use serde::{Serialize, Deserialize};
+use crate::utils::{calculate_bpm, round_dec};
 
 // #[derive(Clone)]
 // pub struct AppProps<'a>{
@@ -50,6 +53,41 @@ impl MapOptions{
             stars: 0.0,
             title: "".into(),
         }
+    }
+
+    /// Reads the data of a .osu map file and modifies the MapOptions struct accordingly
+    pub fn read_map_metadata(&mut self, settings: &Settings) -> Result<()>{
+        let map = libosu::beatmap::Beatmap::parse(BufReader::new(File::open(settings.songs_path.join(&self.map_path))?))?;
+        let stars = rosu_pp::Beatmap::from_path(settings.songs_path.join(&self.map_path))?.stars().calculate().stars();
+        if !settings.ar_lock{
+            self.approach_rate = map.difficulty.approach_rate as f64;
+        }
+        if !settings.cs_lock{
+            self.circle_size = map.difficulty.circle_size as f64;
+        }
+        if !settings.hp_lock{
+            self.hp_drain = map.difficulty.hp_drain_rate as f64;
+        }
+        if !settings.od_lock{
+            self.overall_difficulty = map.difficulty.overall_difficulty as f64;
+        }
+        self.bpm = calculate_bpm(&map.timing_points);
+        self.background = {
+            let mut bg = None;
+            for i in map.events{
+                if let Background(b) = i{
+                    bg = Some(self.map_path.parent().unwrap().to_path_buf().join(PathBuf::from(b.filename)));
+                    break;
+                }
+            }
+            bg
+        };
+        self.mode = map.mode;
+        self.stars = round_dec(stars, 2);
+        self.title = map.title.into();
+        self.artist = map.artist.into();
+        self.difficulty_name = map.difficulty_name.into();
+        Ok(())
     }
 }
 
@@ -119,7 +157,7 @@ impl Settings{
         match serde_json::from_str(&config_data){
             Ok(k) => k,
             Err(e) => {
-                eprintln!("Error parsing config file: {}, using default settings", e);
+                eprintln!("Error parsing config file: {}, using default settings.", e);
                 Self::new()
             }
         }
@@ -173,5 +211,3 @@ pub enum Tab{
     Manual,
     Settings
 }
-
-

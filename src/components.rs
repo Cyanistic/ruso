@@ -1,11 +1,11 @@
 #![allow(non_snake_case)]
-use std::{path::PathBuf, time::Duration};
+use std::{path::PathBuf, time::Duration, io::ErrorKind};
 use dioxus::prelude::*;
 use tokio_tungstenite::{connect_async, tungstenite::Error};
 use serde_json::from_str;
 use rfd::FileDialog;
 use libosu::data::Mode;
-use crate::{props::*, structs::*, *};
+use crate::{props::SliderProps, structs::{MapOptions, Settings, Status, StatusMessage, Theme, Tab}, utils::*};
 use futures_util::StreamExt;
 
 pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
@@ -205,7 +205,7 @@ pub fn SettingsTab(cx: Scope) -> Element{
             places += 1;
         }
 
-        let shortened_space = round_dec(accurate_log * 10.0.pow(places as i32 % 3), 2);
+        let shortened_space = round_dec(accurate_log * 10.0_f64.powi(places as i32 % 3), 2);
         let suffix = match places / 3{
             0 => "",
             1 => "K",
@@ -443,7 +443,6 @@ pub fn AutoTab(cx: Scope) -> Element{
             outer_local.run_until( async move{
                 let _ = tokio::task::spawn_local( async move{
                     loop{
-                        to_owned![map, settings, msg];
                         let settings_url = match url::Url::parse(settings.read().websocket_url.clone().as_str()){
                             Ok(k) => k,
                             Err(e) => {
@@ -477,44 +476,33 @@ pub fn AutoTab(cx: Scope) -> Element{
                         };
 
                         let (_, mut read) = socket.split();
-                        // Spawning a new local task here is only needed if there is no outer_local thread. Leaving it here
-                        // just in case
-                        // let local = tokio::task::LocalSet::new();
-                        // local.run_until( async move{
-                        //     tokio::task::spawn_local( async move{
-                                while let Some(message) = read.next().await{
-                                    match message{
-                                        Ok(message) => {
-                                            let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
-                                            if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
-                                                map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
-                                                if settings.read().songs_path == PathBuf::new() {
-                                                    settings.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
-                                                }
-                                                let temp_map = map.read().clone();
-                                                *map.write() = match read_map_metadata(temp_map, &settings.read()){
-                                                    Ok(k) => k,
-                                                    Err(e) => {
-                                                        msg.write().text = Some(format!("Error reading map metadata: {}", e));
-                                                        msg.write().status = Status::Error;
-                                                        continue
-                                                    }
-                                                };
-                                            }
-                                        },
-                                        Err(e) => {
-                                            msg.write().text = Some(format!("Lost connection to Websocket: {}", e));
+                        while let Some(message) = read.next().await{
+                            match message{
+                                Ok(message) => {
+                                    let data: serde_json::Value = from_str(&message.into_text().unwrap()).unwrap();
+                                    if map.read().map_path != PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap()) {
+                                        map.write().map_path = PathBuf::from(data["menu"]["bm"]["path"]["folder"].as_str().unwrap()).join(data["menu"]["bm"]["path"]["file"].as_str().unwrap());
+                                        if settings.read().songs_path == PathBuf::new() {
+                                            settings.write().songs_path = PathBuf::from(data["settings"]["folders"]["songs"].as_str().unwrap());
+                                        }
+                                        if let Err(e) = map.write().read_map_metadata(&settings.read()){
+                                            msg.write().text = Some(format!("Error reading map metadata: {}", e));
                                             msg.write().status = Status::Error;
                                         }
                                     }
-                                };
-                        //     }).await;
-                        // }).await;
+                                },
+                                Err(e) => {
+                                    msg.write().text = Some(format!("Lost connection to Websocket: {}", e));
+                                    msg.write().status = Status::Error;
+                                }
+                            }
+                        };
                     }
                 }).await;
             }).await;
         }
     });
+
 
     cx.render(rsx!{
         MapOptionsComponent{}
@@ -598,18 +586,14 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
                                 .add_filter("osu! map", &["osu"])
                                 .set_title("Choose a map to edit")
                                 .set_directory(&settings.read().songs_path);
-                            match map_picker.clone().pick_file(){
+                            match map_picker.pick_file(){
                                 Some(k) => map.write().map_path = k.strip_prefix(&settings.read().songs_path).unwrap().to_path_buf(),
                                 None => return
                             };
-                            let temp_map = map.read().clone();
-                            match read_map_metadata(temp_map, &settings.read()){
-                                Ok(k) => *map.write() = k,
-                                Err(e) => {
-                                    msg.write().text = Some(format!("Error reading map metadata: {}", e));
-                                    msg.write().status = Status::Error;
-                                }
-                            };
+                            if let Err(e) = map.write().read_map_metadata(&settings.read()){
+                                msg.write().text = Some(format!("Error reading map metadata: {}", e));
+                                msg.write().status = Status::Error;
+                            }
                         },
                         "Choose map"
                     }
@@ -737,14 +721,10 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
                 class: "reset-button",
                 title: "Reset: Ths will reset the current map settings to the original map settings",
                 onclick: move |_| {
-                    let temp_map = map.read().clone();
-                    match read_map_metadata(temp_map, &settings.read()){
-                        Ok(k) => *map.write() = k,
-                        Err(e) => {
-                            msg.write().text = Some(format!("Error reading map metadata: {}", e));
-                            msg.write().status = Status::Error;
-                        }
-                    };
+                    if let Err(e) = map.write().read_map_metadata(&settings.read()){
+                        msg.write().text = Some(format!("Error reading map metadata: {}", e));
+                        msg.write().status = Status::Error;
+                    }
                 },
                 Triangles{
                     class_name: "reset-triangles",

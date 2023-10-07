@@ -3,8 +3,7 @@
 use std::{process::{Child, Command}, sync::{Arc, Mutex}, path::PathBuf};
 use dioxus::prelude::*;
 use dioxus_desktop::{Config, WindowBuilder, tao::window::Icon, WindowCloseBehaviour, LogicalSize};
-mod cli;
-use ruso::{structs::*, components::*,*};
+use ruso::{structs::*, components::*,utils::*, cli};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{

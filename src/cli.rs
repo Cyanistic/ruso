@@ -2,7 +2,7 @@ use std::{process::{exit, Command}, path::PathBuf, io::{stdout, IsTerminal, stde
 
 use anyhow::{Result, anyhow};
 use futures_util::StreamExt;
-use crate::{MapOptions, Settings, generate_map, gosu_startup, read_map_metadata, round_dec, clean_maps, calculate_space};
+use crate::{structs::{MapOptions, Settings}, utils::{generate_map, gosu_startup, round_dec, clean_maps, calculate_space}};
 use serde_json::Value;
 use tokio_tungstenite::connect_async;
 
@@ -171,7 +171,7 @@ pub async fn run() -> Result<()>{
 
     // Get metadata for the map and set its rate based on
     // bpm if it was provided
-    map = read_map_metadata(map, &settings)?;
+    map.read_map_metadata(&settings)?;
     if let Some(bpm) = bpm{
         map.rate = round_dec(bpm as f64/map.bpm as f64, 2);
     }

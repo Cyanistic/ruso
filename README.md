@@ -56,7 +56,7 @@
 <details> 
 <summary>CLI users</summary>
 
->   Run `ruso --help` for help info to get started.
+>   Run `ruso --help` or check out the [usage](#usage) section for help info to get started.
 
 </details> 
 
