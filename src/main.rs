@@ -8,23 +8,25 @@ use ruso::{structs::*, components::*,utils::*, cli};
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
     let mut gosu_process: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
-    let gosu_process_clone = gosu_process.clone();
     let _ = generate_example_theme("custom.css");
-    ctrlc::set_handler(move ||{
-        // Fix terminal carriage return
-        if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
-            let _ = process.wait();
-        }
-        let mut gosu_process_clone = gosu_process_clone.lock().unwrap();
-        
-        // Kill gosumemory if it was started by ruso
-        if let Some(ref mut process) = gosu_process_clone.as_mut(){
-            #[cfg(not(unix))]
-            process.kill().unwrap_or_else(|_| {writeln!(std::io::stderr(), "Could not kill spawned gosumemory process");});
+    ctrlc::set_handler({
+        let gosu_process = gosu_process.clone();
+            move ||{
+            // Fix terminal carriage return
+            if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
+                let _ = process.wait();
+            }
+            let mut gosu_process = gosu_process.lock().unwrap();
+            
+            // Kill gosumemory if it was started by ruso
+            if let Some(ref mut process) = gosu_process.as_mut(){
+                #[cfg(not(unix))]
+                process.kill().unwrap_or_else(|_| {writeln!(std::io::stderr(), "Could not kill spawned gosumemory process");});
 
-            #[cfg(unix)]
-            unsafe{
-                libc::kill(process.id() as i32, libc::SIGTERM);
+                #[cfg(unix)]
+                unsafe{
+                    libc::kill(process.id() as i32, libc::SIGTERM);
+                }
             }
         }
     })?;
@@ -32,9 +34,14 @@ async fn main() -> anyhow::Result<()>{
         cli::run().await?;
     }else{
         let settings = Settings::new_from_config();
-        if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
-            gosu_process = Arc::new(Some(gosu_startup(&settings)?).into());
-        }
+        tokio::spawn(async move{
+            if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
+                gosu_process = match gosu_startup(&settings){
+                    Ok(k) => Arc::new(Mutex::new(Some(k))),
+                    Err(e) => return eprintln!("Could not start gosumemory: {}", e)
+                } 
+            }
+        });
 
         // #[cfg(target_os = "windows")]
         // let window_icon: Icon = Icon::from_rgba(include_bytes!("../assets/icons/icon.ico").to_vec(), 512, 512).unwrap();
@@ -54,6 +61,12 @@ async fn main() -> anyhow::Result<()>{
                     .with_background_color((0,0,0,255))
                     .with_icon(window_icon.clone())
                     .with_disable_context_menu(false)
+                    .with_custom_head(format!(
+                        r#"
+                    <title>ruso!</title>
+                    <script>{}</script>
+                    "#
+                    , include_str!("js/script.js")))
                     .with_window(WindowBuilder::new()
                         .with_maximizable(true)
                         .with_resizable(true)
@@ -72,6 +85,11 @@ async fn main() -> anyhow::Result<()>{
                     .with_close_behaviour(WindowCloseBehaviour::LastWindowExitsApp)
                     .with_background_color((0,0,0,255))
                     .with_disable_context_menu(false)
+                    .with_custom_head(
+                        r#"
+                    <title>ruso!</title>
+                    "#
+                    .to_string())
                     .with_window(WindowBuilder::new()
                         .with_maximizable(true)
                         .with_resizable(true)
@@ -81,7 +99,7 @@ async fn main() -> anyhow::Result<()>{
                         .with_inner_size(LogicalSize::new(550.0, 650.0))
                     )
                 )
-        };
+        }
     }
     
     Ok(())

@@ -26,7 +26,7 @@ dirs = "5.0.1"
 futures-util = { version = "0.3.28", features = ["io"] }
 hound = "3.5.0"
 id3 = "1.7.0"
-libosu = { version = "0.0.28", path = "./lib/libosu", features = ["pp-calc"] }
+libosu = { git = "https://github.com/Cyanistic/libosu", features = ["pp-calc"] }
 minimp3 = "0.5.1"
 mp3lame-encoder = "0.1.4"
 rfd = "0.11.4"

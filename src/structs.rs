@@ -124,13 +124,16 @@ impl Settings{
             songs_path: PathBuf::new(),
             gosumemory_path: PathBuf::new(),
             gosumemory_startup: false,
-            websocket_url: "ws://localhost:24050/ws".to_string()
+            websocket_url: "ws://127.0.0.1:24050/ws".to_string()
         }
     }
 
     /// Attempt to create a settings struct from an existing 'settings.json' file
     pub fn new_from_config() -> Self{
-        let config_dir = dirs::config_dir().unwrap().join("ruso");
+        let config_dir = match dirs::config_dir(){
+            Some(k) => k,
+            None => return Self::new()
+        }.join("ruso");
         if !config_dir.exists(){
             if let Err(e) = std::fs::create_dir_all(&config_dir){
                 eprintln!("Could not create config directory: {}", e);

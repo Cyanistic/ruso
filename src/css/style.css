@@ -290,10 +290,10 @@ div.map-image{
 
 @keyframes move{
   0%{
-    transform: translate(-50px, 200px) scale(1);
+    translate: -50px 200px;
   }
   100%{
-    transform: translate(100%, -100%) scale(1);
+    translate: 100% -100%;
   }
 }
 
@@ -304,6 +304,7 @@ div.triangle-container{
   margin: -20px;
   position: absolute;
   display: flex;
+  perspective: 1000px;
   /* background-color: var(--darkened-secondary); */
   border-radius: 10px;
   z-index: -100;

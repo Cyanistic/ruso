@@ -1,7 +1,0 @@
-Cargo.lock
-target
-
-.pytest_cache
-*~
-.direnv
-/result*
