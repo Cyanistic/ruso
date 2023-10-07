@@ -18,6 +18,7 @@ button{
   background-color: var(--secondary);
   font-weight: bold;
   font-size: clamp(1rem, 2.2vh, 1.5rem);
+  filter: drop-shadow(0.35rem 0.35rem 0.4rem rgba(0, 0, 0, 0.5));
   outline: none;
   border: 3px solid transparent;
   appearance: none;
@@ -198,12 +199,15 @@ div.status-message{
 }
 
 div.map-image{
-  width: 100vw;
+  filter: drop-shadow(0.35rem 0.35rem 0.4rem rgba(0, 0, 0, 0.5));
   height: 25vh;
   background-size: cover;
   background-position: center;
-  margin-left: -8px;
   position: relative;
+  display: flex;
+  margin-left: 1vw;
+  margin-right: 1vw;
+  justify-content: center;
   text-align: center;
   margin-top: 20px;
   margin-bottom: 20px;
@@ -215,6 +219,7 @@ div.map-image{
 }
 
 .map-title,.map-artist,.map-difficulty,.map-stars{
+  text-shadow: 0.35rem 0.35rem 0.4rem rgba(0, 0, 0, 0.5);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -365,6 +370,7 @@ div.close-button{
 }
 
 div.message-box{
+  filter: drop-shadow(0.35rem 0.35rem 0.4rem rgba(0, 0, 0, 0.5));
   position: relative;
 }
 
