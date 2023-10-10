@@ -562,12 +562,12 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
     let css_filter = {
             let stars = map.read().stars;
             match stars{
-            _ if stars < 2.0 => "invert(69%) sepia(33%) saturate(2985%) hue-rotate(175deg) brightness(102%) contrast(101%)",
-            _ if stars < 2.7 => "invert(76%) sepia(69%) saturate(421%) hue-rotate(50deg) brightness(98%) contrast(111%)",
-            _ if stars < 4.0 => "invert(90%) sepia(39%) saturate(654%) hue-rotate(357deg) brightness(96%) contrast(100%)",
-            _ if stars < 5.3 => "invert(72%) sepia(61%) saturate(7424%) hue-rotate(320deg) brightness(101%) contrast(101%)",
-            _ if stars < 6.5 => "invert(51%) sepia(35%) saturate(6862%) hue-rotate(278deg) brightness(82%) contrast(87%)",
-            _ if stars < 7.5 => "invert(40%) sepia(27%) saturate(3352%) hue-rotate(220deg) brightness(91%) contrast(90%)",
+            _ if stars < 2.0 => "brightness(0) saturate(100%) invert(77%) sepia(49%) saturate(4262%) hue-rotate(176deg) brightness(102%) contrast(105%)",
+            _ if stars < 2.7 => "brightness(0) saturate(100%) invert(87%) sepia(45%) saturate(722%) hue-rotate(43deg) brightness(101%) contrast(103%)",
+            _ if stars < 4.0 => "brightness(0) saturate(100%) invert(87%) sepia(31%) saturate(782%) hue-rotate(4deg) brightness(107%) contrast(93%)",
+            _ if stars < 5.3 => "brightness(0) saturate(100%) invert(69%) sepia(66%) saturate(6689%) hue-rotate(320deg) brightness(101%) contrast(101%)",
+            _ if stars < 6.5 => "brightness(0) saturate(100%) invert(34%) sepia(32%) saturate(3109%) hue-rotate(276deg) brightness(97%) contrast(84%)",
+            _ if stars < 7.5 => "brightness(0) saturate(100%) invert(39%) sepia(37%) saturate(1433%) hue-rotate(208deg) brightness(96%) contrast(91%)",
             _ => "grayscale(100%)"
         }
     };
