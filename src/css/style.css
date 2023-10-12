@@ -28,7 +28,7 @@ button{
 button:hover{
   background-color: var(--darkened-secondary);
   border: 3px solid var(--lightened-secondary);
-  transform: scale(1.03);
+  /* transform: scale(1.03); */
 }
 
 h1, h2{
@@ -125,7 +125,7 @@ button.tab-button{
 button.tab-button:hover{
   background-color: var(--darkened-secondary);
   border: 3px solid var(--lightened-secondary);
-  transform: scaleX(1.1) scaleY(1.0);
+  /* transform: scaleX(1.1) scaleY(1.0); */
 }
 
 div.bpm-grid{
@@ -224,7 +224,8 @@ div.map-image{
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: bold;
-  color: var(--text-secondary);
+  /* color: var(--text-secondary); */
+  color: #FFF;
 }
 
 .map-title {

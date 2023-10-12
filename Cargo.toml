@@ -26,6 +26,7 @@ dirs = "5.0.1"
 futures-util = { version = "0.3.28", features = ["io"] }
 hound = "3.5.0"
 id3 = "1.7.0"
+include-base64 = { git = "https://github.com/yvt/include-base64", branch = "base64-std", ref = "44a4324" }
 libosu = { git = "https://github.com/Cyanistic/libosu", features = ["pp-calc"] }
 minimp3 = "0.5.1"
 mp3lame-encoder = "0.1.4"
