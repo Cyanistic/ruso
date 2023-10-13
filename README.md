@@ -56,7 +56,7 @@
 <details> 
 <summary>CLI users</summary>
 
->   Run `ruso --help` or check out the [usage](#usage) section for help info to get started.
+>   Run `ruso --help` or check out the [usage](#cli-usage) section for help info to get started.
 
 </details> 
 
@@ -93,7 +93,7 @@ Note that mp3 files take approximately 1s to process for every 20s of audio. If 
 > | Debian                          | `ruso_x.x.x_amd64.deb` from [releases]                |
 > | Arch Linux (AUR)                | `yay -S ruso-bin` (not working yet)                   |
 > | Any (Recommended if not listed) | `ruso-x86_64-unknown-linux-gnu` from [releases]       |
-> | Any                             | `ruso_x.x.x_amd64.AppImage` from [releases] |
+> | Any                             | `ruso_x.x.x_amd64.AppImage` from [releases]           |
 
 </details>
 
@@ -167,7 +167,7 @@ You can either build ruso into a standalone binary or bundle it into a self-cont
 <details>
     <summary>Building (Recommended)</summary>
 
-> Building ruso requires an up-to-date installation of [cargo].
+> Building ruso requires an up-to-date installation of [cargo] and the [dependencies](#dependencies).
 > 
 > 1. Clone the repo and cd into it.
 > ```
@@ -185,7 +185,7 @@ You can either build ruso into a standalone binary or bundle it into a self-cont
 <details>
     <summary>Bundling</summary>
 
->Building ruso requires an up-to-date installation of [cargo], the [Dioxus CLI] and the [Dioxus dependencies].
+>Building ruso requires an up-to-date installation of [cargo], the [Dioxus CLI] and the [dependencies](#dependencies).
 >
 >1. Clone the repo and cd into it.
 >```

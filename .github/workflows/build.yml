@@ -30,8 +30,9 @@ jobs:
         run:
           cargo binstall -y dioxus-cli --locked
       - name: Install Dioxus dependencies (ubuntu)
-        run:
-          sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
+        run: |
+          sudo apt-get update
+          sudo apt install --fix-missing libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
         if: matrix.platform == 'ubuntu-latest'
       - name: Build App (windows)
         run: |
@@ -49,9 +50,10 @@ jobs:
         continue-on-error: true
       - name: Rename duplicate files (macos)
         run: |
-            mv ./dist/bundle/macos/ruso*.app ./dist/bundle/macos/ruso${{ matrix.rust_target }}.app 
-            mv ./dist/bundle/macos/ruso*.dmg ./dist/bundle/macos/ruso${{ matrix.rust_target }}.dmg 
+            mv ./dist/bundle/macos/ruso*.app ./dist/bundle/macos/ruso-${{ matrix.rust_target }}.app 
+            mv ./dist/bundle/macos/ruso*.dmg ./dist/bundle/macos/ruso-${{ matrix.rust_target }}.dmg 
         if: matrix.platform == 'macos-latest'
+        continue-on-error: true
       - name: Upload Release Assets (windows)
         id: upload-release-asset-windows
         uses: softprops/action-gh-release@v1

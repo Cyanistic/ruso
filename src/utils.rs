@@ -345,7 +345,7 @@ pub fn gosu_startup(settings: &Settings) -> Result<Child>{
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn gosu_startups(settings: &Settings) -> Result<Child>{
+pub fn gosu_startup(settings: &Settings) -> Result<Child>{
     use std::process::Command;
     if settings.gosumemory_path.is_file(){
         if settings.songs_path.is_dir() {
