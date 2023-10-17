@@ -35,8 +35,15 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
     };
 
     // Change beatmap properties to match those given by the user
-    map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
-    map_data.difficulty_name += format!(" {}x ({}bpm)", rate, (map.bpm as f64 * rate) as usize).as_str(); 
+    let new_audio_path;
+    if rate != 1.0{
+        new_audio_path = PathBuf::from(format!("{}({}).{}", audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap()));
+        map_data.audio_filename = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, &audio_path.extension().unwrap().to_str().unwrap());
+        map_data.difficulty_name += format!(" {}x ({}bpm)", rate, (map.bpm as f64 * rate) as usize).as_str(); 
+    }else{
+        new_audio_path = audio_path.clone();
+        map_data.difficulty_name += format!(" (AR {} CS {} HP {} OD {})", map.approach_rate, map.circle_size, map.hp_drain, map.overall_difficulty ).as_str();
+    }
     map_data.difficulty.approach_rate = map.approach_rate as f32;
     map_data.difficulty.circle_size = map.circle_size as f32;
     map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
@@ -44,14 +51,17 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
     map_data.preview_time.0 = (*map_data.preview_time as f64 / rate).round() as i32;
     map_data.tags.push("ruso-map".to_string());
 
-    // Generate audio file on a new thread
-    let audio_thread = tokio::task::spawn({
-        let audio_path = audio_path.clone();
-        let change_pitch = settings.change_pitch;
-        async move{
-            generate_audio(&audio_path, rate, change_pitch)
-        }
-    });
+    let mut audio_thread = None;
+    if settings.force_generation || !new_audio_path.exists(){
+        // Generate audio file on a new thread
+        audio_thread = Some(tokio::task::spawn({
+            let audio_path = audio_path.clone();
+            let change_pitch = settings.change_pitch;
+            async move{
+                generate_audio(&audio_path, rate, change_pitch)
+            }
+        }));
+    }
 
     // Change time value for each hit object to match the new rate of the map
     for h in &mut map_data.hit_objects{
@@ -75,12 +85,13 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
         }
     }
 
-    // Generate paths for the new .osu file and audio file
+    // Generate path for the new .osu file
     let new_path = PathBuf::from(format!("{}({}).osu", path.parent().unwrap().join(path.file_stem().unwrap()).display(), rate));
-    let new_audio_path = PathBuf::from(format!("{}({}).{}", audio_path.parent().unwrap().join(audio_path.file_stem().unwrap()).display(), rate, audio_path.extension().unwrap().to_str().unwrap()));
 
     // Wait for the audio threat to finish and return an error if something went wrong
-    let _ = audio_thread.await.map_err(|e| anyhow::anyhow!("Error generating audio file: {:?}", e))?;
+    if let Some(audio_thread) = audio_thread{
+        let _ = audio_thread.await.map_err(|e| anyhow::anyhow!("Error generating audio file: {:?}", e))?;
+    } 
     
     // Generate .osz file or .osu depending on user selection
     if settings.generate_osz{
@@ -98,75 +109,18 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
 
 /// Generates a new audio file with the given rate.
 fn generate_audio(audio_path: &PathBuf, rate: f64, change_pitch: bool) -> Result<()>{
-    let final_path = PathBuf::from(format!("{}({}).{}",
-        audio_path.parent().unwrap_or(Path::new("")).join(audio_path.file_stem().ok_or(anyhow!("Couldn't find the file stem for audio file"))?).display(),
-        rate,
-        audio_path.extension().ok_or(anyhow!("Invalid audio file extension"))?.to_str().unwrap()));
-    
-    // Only generate an audio file if it does not already exist to prevent unnecessary processing
-    if !final_path.exists(){
-        // Generate audio file based on extension
-        match audio_path.extension().unwrap_or(std::ffi::OsStr::new("")).to_str().unwrap(){
-            "ogg" => change_speed_ogg(audio_path, rate, change_pitch)?,
-            "wav" => change_speed_wav(audio_path, rate, change_pitch)?,
-            "mp3" => change_speed_mp3(audio_path, rate, change_pitch)?,
-            _ => {
-                // Attempt to process file as mp3 if it is not a known file type
-                 if change_speed_mp3(audio_path, rate, change_pitch).is_err(){
-                    return Err(anyhow!("Unsupported/unknown file type!"))
-                }
+    // Generate audio file based on extension
+    match audio_path.extension().unwrap_or(std::ffi::OsStr::new("")).to_str().unwrap(){
+        "ogg" => change_speed_ogg(audio_path, rate, change_pitch)?,
+        "wav" => change_speed_wav(audio_path, rate, change_pitch)?,
+        "mp3" => change_speed_mp3(audio_path, rate, change_pitch)?,
+        _ => {
+            // Attempt to process file as mp3 if it is not a known file type
+             if change_speed_mp3(audio_path, rate, change_pitch).is_err(){
+                return Err(anyhow!("Unsupported/unknown file type!"))
             }
-        };
-    }
-
-    Ok(())
-}
-
-/// Generates a new .osu file without generating a new audio file.
-///
-/// This does the same thing as generate_map() but without the audio generation and gives .osu file
-/// a slightly different name.
-pub fn change_map_difficulty(map: &MapOptions, settings: &Settings) -> Result<()>{
-    let path = settings.songs_path.join(&map.map_path);
-    let map_file = File::open(&path)?;
-    let mut map_data = libosu::beatmap::Beatmap::parse(map_file)?;
-    let cache_dir = dirs::cache_dir().ok_or(anyhow!("Couldn't find cache directory"))?.join("ruso");
-    if !cache_dir.exists(){
-        std::fs::create_dir_all(&cache_dir)?;
-    }
-    let mut cache_file = match OpenOptions::new().append(true).open(cache_dir.join("maps.txt")){
-        Ok(k) => k,
-        Err(e) if e.kind() == ErrorKind::NotFound => {
-            let mut temp = File::create(cache_dir.join("maps.txt"))?;
-            writeln!(temp, "// Files generated by ruso")?;
-            writeln!(temp, "// Do not delete this file as it is used to keep track of files generated by ruso for easy removal if needed")?;
-            writeln!(temp, "// For safety reasons, ruso only removes files that start with your current osu! songs path")?;
-            temp
-        },
-        Err(e) => return Err(anyhow!("Error opening maps.txt: {}", e))
+        }
     };
-
-    map_data.difficulty_name += format!(" (AR {} CS {} HP {} OD {})", map.approach_rate, map.circle_size, map.hp_drain, map.overall_difficulty ).as_str();
-    map_data.difficulty.approach_rate = map.approach_rate as f32;
-    map_data.difficulty.circle_size = map.circle_size as f32;
-    map_data.difficulty.hp_drain_rate = map.hp_drain as f32;
-    map_data.difficulty.overall_difficulty = map.overall_difficulty as f32;
-    map_data.tags.push("ruso-map".to_string());
-
-    // Make the new path list the new difficulty values instead of the rate since the rate is
-    // unchanged
-    let new_path = format!("{} (AR {} CS {} HP {} OD {})", path.parent().unwrap().join(path.file_stem().unwrap()).display(),
-        map.approach_rate,
-        map.circle_size,
-        map.hp_drain,
-        map.overall_difficulty);
-    
-    if settings.generate_osz{
-        generate_osz(&PathBuf::from(&new_path), &map_data)?;
-    }else {
-        write!(File::create(&new_path)?, "{}", map_data)?;
-    }
-    writeln!(cache_file, "{}", new_path)?;
 
     Ok(())
 }

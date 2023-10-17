@@ -188,6 +188,12 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
                 toggled: settings.read().change_pitch,
                 on_event: move |ev: bool| settings.write().change_pitch = !ev
             }
+            Toggleable{
+                name: "Override audio",
+                title: "Override audio: Forces the generation of a new audio file even if one of the same rate already exists. This is useful if you already generated an audio file with a changed pitch and now want to regenerate the same audio file with an unchanged pitch, or vice versa.",
+                toggled: settings.read().force_generation,
+                on_event: move |ev: bool| settings.write().force_generation = !ev
+            }
         }
     })
 }
@@ -708,29 +714,16 @@ pub fn MapOptionsComponent(cx: Scope) -> Element{
                         to_owned![map, settings, msg, generating_map];
                         async move{
                             tokio::time::sleep(Duration::from_millis(100)).await; // Wait so the message can be displayed
-                            if map.read().rate != 1.0{
-                                match generate_map(&map.read(), &settings.read()).await{
-                                    Ok(_) => {
-                                        msg.write().text = Some("Map created successfully!".to_string());
-                                        msg.write().status = Status::Success;
-                                    },
-                                    Err(e) => {
-                                        msg.write().text = Some(format!("Error creating map: {}", e));
-                                        msg.write().status = Status::Error;
-                                    }
-                                };
-                            }else{
-                                match change_map_difficulty(&map.read(), &settings.read()){
-                                    Ok(_) => {
-                                        msg.write().text = Some("Map created successfully!".to_string());
-                                        msg.write().status = Status::Success;
-                                    },
-                                    Err(e) => {
-                                        msg.write().text = Some(format!("Error creating map: {}", e));
-                                        msg.write().status = Status::Error;
-                                    }
-                                };
-                            }
+                            match generate_map(&map.read(), &settings.read()).await{
+                                Ok(_) => {
+                                    msg.write().text = Some("Map created successfully!".to_string());
+                                    msg.write().status = Status::Success;
+                                },
+                                Err(e) => {
+                                    msg.write().text = Some(format!("Error creating map: {}", e));
+                                    msg.write().status = Status::Error;
+                                }
+                            };
                             generating_map.set(false);
                         }
                     })
