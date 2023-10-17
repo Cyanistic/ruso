@@ -3,26 +3,39 @@ use anyhow::{Result, anyhow};
 use id3::{Tag, TagLike};
 use mp3lame_encoder::{FlushNoGap, Id3Tag, InterleavedPcm, max_required_buffer_size, MonoPcm};
 use vorbis_rs::{VorbisDecoder, VorbisEncoderBuilder};
+use soundtouch::SoundTouch;
 
-pub fn change_speed_wav(path: &PathBuf, rate: f64) -> Result<(), hound::Error>{
+pub fn change_speed_wav(path: &PathBuf, rate: f64, change_pitch: bool) -> Result<(), hound::Error>{
     let mut reader = hound::WavReader::open(path)?;
-    let sample_rate = reader.spec().sample_rate;
-    let channels = reader.spec().channels;
-    let spec = hound::WavSpec{
-        channels,
-        sample_rate: (sample_rate as f64 * rate) as u32,
-        bits_per_sample: reader.spec().bits_per_sample,
-        sample_format: reader.spec().sample_format,
+    let mut spec = hound::WavSpec{
+        ..reader.spec()
     };
-    let mut writer = hound::WavWriter::create(format!("{}({})", path.display(), rate), spec)?;
-    for sample in reader.samples::<i16>(){
-        writer.write_sample(sample?)?;
+
+    let samples = reader.samples::<i16>().map(|x| x.unwrap() as f32).collect::<Vec<f32>>();
+    let out_data: Vec<f32>;
+
+    if change_pitch{
+        spec.sample_rate = (spec.sample_rate as f64 * rate) as u32;
+        out_data = samples;
+    }else{
+        let mut soundtouch = SoundTouch::new();
+        soundtouch
+            .set_sample_rate(reader.spec().sample_rate)
+            .set_channels(reader.spec().channels as u32)
+            .set_tempo(rate);
+            out_data = soundtouch.generate_audio(&samples);
+    }
+
+    let mut encoder = hound::WavWriter::create(format!("{}({})", path.display(), rate), spec)?;
+
+    for sample in out_data{
+        encoder.write_sample(sample)?;
     };
-    writer.finalize()?;
+    encoder.finalize()?;
     Ok(())
 }
 
-pub fn change_speed_ogg(path: &PathBuf, rate: f64) -> Result<()>{
+pub fn change_speed_ogg(path: &PathBuf, rate: f64, change_pitch: bool) -> Result<()>{
     let mut source_ogg = File::open(path)?;
     let mut transcoded_ogg = Vec::new();
     let mut decoder = VorbisDecoder::new(&mut source_ogg)?;
@@ -41,16 +54,16 @@ pub fn change_speed_ogg(path: &PathBuf, rate: f64) -> Result<()>{
     Ok(())
 }
 
-pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
+pub fn change_speed_mp3(path: &PathBuf, rate: f64, change_pitch: bool) -> Result<()>{
     let mut mp3_data: Vec<u8> = Vec::new();
     let mut decoder = minimp3::Decoder::new(File::open(path)?);
     let tag = Tag::read_from_path(path);
     let mp3_headers = decoder.next_frame()?;
-    let mut encoder = mp3lame_encoder::Builder::new().unwrap();
+    let mut encoder = mp3lame_encoder::Builder::new().ok_or(anyhow!("Could not instantiate an mp3 builder"))?;
 
-    encoder.set_num_channels(mp3_headers.channels as u8).unwrap();
-    encoder.set_quality(mp3lame_encoder::Quality::Best).unwrap();
-    encoder.set_mode(mp3lame_encoder::Mode::Stereo).unwrap();
+    encoder.set_num_channels(mp3_headers.channels as u8).map_err(|e| anyhow!("Could not set mp3 encoder channels: {}", e))?;
+    encoder.set_quality(mp3lame_encoder::Quality::Best).map_err(|e| anyhow!("Could not set mp3 encoder quality: {}", e))?;
+    encoder.set_mode(mp3lame_encoder::Mode::Stereo).map_err(|e| anyhow!("Could not set mp3 audio mode: {}", e))?;
 
     encoder.set_brate(match mp3_headers.bitrate {
         _ if mp3_headers.bitrate >= 320 => mp3lame_encoder::Bitrate::Kbps320,
@@ -70,7 +83,7 @@ pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
         _ if mp3_headers.bitrate >= 16  => mp3lame_encoder::Bitrate::Kbps16,
         _ if mp3_headers.bitrate >= 8   => mp3lame_encoder::Bitrate::Kbps8,
         _ => mp3lame_encoder::Bitrate::Kbps96,
-    }).unwrap();
+    }).map_err(|e| anyhow!("Could not set mp3 bitrate: {}", e))?;
 
     if let Ok(tag) = &tag{
         let year: Box<[u8]> = if let Some(year) = tag.year(){
@@ -94,9 +107,22 @@ pub fn change_speed_mp3(path: &PathBuf, rate: f64) -> Result<()>{
         input.append(&mut frame.data);
     }
 
-    encoder.set_sample_rate((mp3_headers.sample_rate as f64 * rate) as u32).unwrap();
+    encoder.set_sample_rate(
+        if change_pitch{
+            (mp3_headers.sample_rate as f64 * rate) as u32
+        }else{
+            let mut soundtouch = SoundTouch::new();
+            soundtouch
+                .set_sample_rate(mp3_headers.sample_rate as u32)
+                .set_channels(mp3_headers.channels as u32)
+                .set_tempo(rate);
+                input = soundtouch.generate_audio(input.into_iter().map(|x| x as f32).collect::<Vec<f32>>().as_slice())
+                    .into_iter().map(|x| x as i16).collect::<Vec<i16>>();
+            mp3_headers.sample_rate as u32
+        }
+    ).map_err(|e| anyhow!("Could not set mp3 sample rate: {}", e))?;
 
-    let mut encoder = encoder.build().unwrap();
+    let mut encoder = encoder.build().map_err(|e| anyhow!("Could not build mp3 encoder: {}", e))?;
     if encoder.num_channels() == 1 {
         let input = MonoPcm(&input);
         mp3_data.reserve(max_required_buffer_size(input.0.len()));

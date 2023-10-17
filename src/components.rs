@@ -6,7 +6,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Error};
 use serde_json::from_str;
 use rfd::FileDialog;
 use libosu::data::Mode;
-use crate::{props::SliderProps, structs::{MapOptions, Settings, Status, StatusMessage, Theme, Tab}, utils::*};
+use crate::{props::{SliderProps, ToggleableProps}, structs::{MapOptions, Settings, Status, StatusMessage, Theme, Tab}, utils::*};
 use futures_util::StreamExt;
 
 pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
@@ -23,7 +23,7 @@ pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 class: "slider generic-slider",
                 id: "{cx.props.acronym}",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(cx.props.read - (absoluteify(ev.data.delta().strip_units().y)/10.0), 2);
+                    let mut temp_val = round_dec(cx.props.read - (ev.data.delta().strip_units().y.signum()/10.0), 2);
                     if temp_val > 10.0 {
                         temp_val  = 10.0;
                     } else if temp_val < 0.0 {
@@ -43,7 +43,7 @@ pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
                 value: "{cx.props.read}",
                 id: "{cx.props.acronym}_number",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(cx.props.read - (absoluteify(ev.data.delta().strip_units().y)/10.0), 2);
+                    let mut temp_val = round_dec(cx.props.read - (ev.data.delta().strip_units().y.signum()/10.0), 2);
                     if temp_val > 10.0 {
                         temp_val  = 10.0;
                     } else if temp_val < 0.0 {
@@ -85,6 +85,7 @@ pub fn GenericSlider<'a>(cx: Scope<'a, SliderProps<'a>>) -> Element{
 pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) -> Element{
     let value = use_state(cx, || 1.0);
     let new_bpm = (*bpm as f64 * *value.get()).round() as usize;
+    let settings = use_shared_state::<Settings>(cx)?;
     
     cx.render(rsx! {
         div {
@@ -99,7 +100,7 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
                 class: "slider",
                 id: "Rate",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(*value.get() - (absoluteify(ev.data.delta().strip_units().y)/20.0), 2);
+                    let mut temp_val = round_dec(*value.get() - (ev.data.delta().strip_units().y.signum()/20.0), 2);
                     if temp_val > 10.0 {
                         temp_val = 10.0;
                     } else if temp_val < 0.05 {
@@ -121,7 +122,7 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
                 value: round_dec(*value.get(), 2),
                 id: "Rate_number",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(*value.get() - (absoluteify(ev.data.delta().strip_units().y)/20.0), 2);
+                    let mut temp_val = round_dec(*value.get() - (ev.data.delta().strip_units().y.signum()/20.0), 2);
                     if temp_val > 40.0 {
                         temp_val = 40.0;
                     } else if temp_val < 0.05 {
@@ -165,7 +166,7 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
                 class: "bpm-input",
                 id: "bpm_number",
                 onwheel: move |ev|{
-                    let mut temp_val = round_dec(*value.get() - (absoluteify(ev.data.delta().strip_units().y)/20.0), 2);
+                    let mut temp_val = round_dec(*value.get() - (ev.data.delta().strip_units().y.signum()/20.0), 2);
                     if temp_val > 40.0 {
                         temp_val = 40.0;
                     } else if temp_val < 0.05 {
@@ -180,6 +181,29 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
                     value.set(new_rate);
                     cx.props.on_event.call(new_rate);
                 },
+            }
+            Toggleable{
+                name: "Change pitch",
+                title: "Change pitch: If checked, the pitch of the audio file will scale with the rate. If disabled, the pitch will remain the same, no matter the rate.",
+                toggled: settings.read().change_pitch,
+                on_event: move |ev: bool| settings.write().change_pitch = !ev
+            }
+        }
+    })
+}
+
+pub fn Toggleable<'a>(cx: Scope<'a, ToggleableProps<'a>>) -> Element{
+    cx.render(rsx!{
+        div{
+            class: "toggleable-container",
+            title: "{cx.props.title}",
+            "{cx.props.name}"
+            input{
+                r#type: "checkbox",
+                checked: "{cx.props.toggled}",
+                onclick: move |_| {
+                    cx.props.on_event.call(cx.props.toggled);
+                }
             }
         }
     })

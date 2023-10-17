@@ -2543,6 +2543,7 @@ dependencies = [
  "rosu-pp 0.9.5",
  "serde",
  "serde_json",
+ "soundtouch",
  "tokio",
  "tokio-tungstenite",
  "url",
@@ -2787,6 +2788,26 @@ checksum = "4031e820eb552adee9295814c0ced9e5cf38ddf1e8b7d566d6de8e2538ea989e"
 dependencies = [
  "libc",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "soundtouch"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36848b2827257e7fb81f93fbaf7ade203505d188d9cba9c2b69448dcf8cf565d"
+dependencies = [
+ "libc",
+ "soundtouch-ffi",
+]
+
+[[package]]
+name = "soundtouch-ffi"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74e984705df6333756b385c31132bede8f27bb1b52d9d3150e9b0fa2fe767e26"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]

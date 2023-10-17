@@ -1,5 +1,6 @@
 use anyhow::Result;
 use dioxus::prelude::*;
+use serde_json::error::Category;
 use std::{path::PathBuf, io::{ErrorKind, Write, BufReader}, fs::File};
 use libosu::{data::Mode, events::Event::Background};
 use rosu_pp::BeatmapExt;
@@ -101,6 +102,7 @@ impl Default for MapOptions{
 #[derive(Debug, Props, PartialEq, Serialize, Deserialize)]
 pub struct Settings{
     pub ar_lock: bool,
+    pub change_pitch: bool,
     pub cs_lock: bool,
     pub generate_osz: bool,
     pub gosumemory_path: PathBuf,
@@ -117,6 +119,7 @@ impl Settings{
         Settings{
             theme: Theme::Dark,
             ar_lock: false,
+            change_pitch: true,
             cs_lock: false,
             hp_lock: false,
             od_lock: false,
@@ -159,6 +162,14 @@ impl Settings{
         };
         match serde_json::from_str(&config_data){
             Ok(k) => k,
+            Err(e) if e.classify() == Category::Syntax  => {
+                eprintln!("Syntax error in config file: {}, using default settings.", e);
+                Self::new()
+            },
+            Err(e) if e.classify() == Category::Data  => {
+                eprintln!("The config file is incorrect: {}, using default settings.", e);
+                Self::new()
+            },
             Err(e) => {
                 eprintln!("Error parsing config file: {}, using default settings.", e);
                 Self::new()

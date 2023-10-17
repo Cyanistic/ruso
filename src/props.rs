@@ -9,3 +9,12 @@ pub struct SliderProps<'a>{
     pub on_event: EventHandler<'a, f64>, 
     pub on_lock: EventHandler<'a, bool>, 
 }
+
+
+#[derive(Props)]
+pub struct ToggleableProps<'a>{
+    pub name: &'a str,
+    pub title: &'a str,
+    pub toggled: bool,
+    pub on_event: EventHandler<'a, bool>, 
+}

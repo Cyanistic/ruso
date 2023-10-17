@@ -9,18 +9,9 @@ use serde_json::from_str;
 use crate::{structs::{MapOptions, Settings}, audio::*};
 
 
-/// Resturns if a number is positive or negative.
-pub fn absoluteify(num: f64) -> f64{
-    if num > 0.0{
-        1.0 
-    }else{
-        -1.0
-    }
-}
-
 /// Generates an audio and .osu file using the given Settings and MapOptions structs.
-pub async fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
-    let path = &settngs.songs_path.join(&map.map_path);
+pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
+    let path = &settings.songs_path.join(&map.map_path);
     let rate = map.rate;
     let map_file = File::open(path)?;
     let mut map_data = libosu::beatmap::Beatmap::parse(map_file)?;
@@ -56,8 +47,9 @@ pub async fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     // Generate audio file on a new thread
     let audio_thread = tokio::task::spawn({
         let audio_path = audio_path.clone();
+        let change_pitch = settings.change_pitch;
         async move{
-            generate_audio(&audio_path, rate)
+            generate_audio(&audio_path, rate, change_pitch)
         }
     });
 
@@ -91,7 +83,7 @@ pub async fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
     let _ = audio_thread.await.map_err(|e| anyhow::anyhow!("Error generating audio file: {:?}", e))?;
     
     // Generate .osz file or .osu depending on user selection
-    if settngs.generate_osz{
+    if settings.generate_osz{
         generate_osz(&new_path, &map_data)?;
     }else{
         write!(File::create(&new_path)?,"{}", map_data)?;
@@ -105,7 +97,7 @@ pub async fn generate_map(map: &MapOptions, settngs: &Settings) -> Result<()>{
 }
 
 /// Generates a new audio file with the given rate.
-fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
+fn generate_audio(audio_path: &PathBuf, rate: f64, change_pitch: bool) -> Result<()>{
     let final_path = PathBuf::from(format!("{}({}).{}",
         audio_path.parent().unwrap_or(Path::new("")).join(audio_path.file_stem().ok_or(anyhow!("Couldn't find the file stem for audio file"))?).display(),
         rate,
@@ -115,12 +107,12 @@ fn generate_audio(audio_path: &PathBuf, rate: f64) -> Result<()>{
     if !final_path.exists(){
         // Generate audio file based on extension
         match audio_path.extension().unwrap_or(std::ffi::OsStr::new("")).to_str().unwrap(){
-            "ogg" => change_speed_ogg(audio_path, rate)?,
-            "wav" => change_speed_wav(audio_path, rate)?,
-            "mp3" => change_speed_mp3(audio_path, rate)?,
+            "ogg" => change_speed_ogg(audio_path, rate, change_pitch)?,
+            "wav" => change_speed_wav(audio_path, rate, change_pitch)?,
+            "mp3" => change_speed_mp3(audio_path, rate, change_pitch)?,
             _ => {
                 // Attempt to process file as mp3 if it is not a known file type
-                 if change_speed_mp3(audio_path, rate).is_err(){
+                 if change_speed_mp3(audio_path, rate, change_pitch).is_err(){
                     return Err(anyhow!("Unsupported/unknown file type!"))
                 }
             }
