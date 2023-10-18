@@ -128,13 +128,23 @@ button.tab-button:hover{
   /* transform: scaleX(1.1) scaleY(1.0); */
 }
 
-div.bpm-grid{
+div.settings-grid{
   display: grid;
   padding-top: 0.25rem;
   padding-bottom: 0.5rem;
+  column-gap: 20%;
+  width: 100%;
+  justify-content: center;
+  grid-template-areas: 
+    "bpm toggle";
+}
+
+div.bpm-grid{
+  display: grid;
   column-gap: clamp(1rem, 2vw, 2rem);
   row-gap: 0.5rem;
   justify-content: start;
+  grid-area: "bpm";
   grid-template-areas: 
     "bpm-label bpm-input"
     "bpm-label bpm-input";
@@ -152,6 +162,50 @@ div.bpm-input{
   justify-content: center;
   align-items: center;
   text-align: center;
+}
+
+div.toggle-grid{
+  display: grid;
+  column-gap: clamp(1rem, 2vw, 2rem);
+  row-gap: 0.5rem;
+  justify-content: end;
+  grid-area: "toggle";
+  grid-template-areas: 
+    "toggle-label toggle-box"
+    "toggle-label toggle-box";
+}
+
+div.toggleable-label{
+  grid-area: "toggle-label";
+  justify-content: left;
+  align-items: left;
+  text-align: left;
+}
+
+
+div.toggleable-box{
+  grid-area: "toggle-box";
+  justify-content: right;
+  align-items: right;
+  text-align: right;
+}
+
+input[type="checkbox"]{
+  appearance: none;
+  width: 30px; /* Width of the oval */
+  height: 15px; /* Height of the oval */
+  background-color: transparent; /* Transparent background when unchecked */
+  border: 3px solid var(--secondary); /* Oval border */
+  border-radius: 50px; /* Make it round */
+  display: inline-block;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  vertical-align: middle;
+  margin-left: 5px;
+}
+
+input[type="checkbox"]:checked{
+  background-color: var(--secondary);
 }
 
 div.button-container{

@@ -144,55 +144,61 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
             }
         }
         div{
-            class: "bpm-grid",
+            class: "settings-grid",
             div{
-                class: "bpm-label",
-                "Old BPM "
+                class: "bpm-grid",
+                div{
+                    class: "bpm-label",
+                    "Old BPM "
+                }
+                div{
+                    class: "bpm-input",
+                    "{bpm}"
+                }
+                div{
+                    class: "bpm-label",
+                    "New BPM "
+                }
+                input { 
+                    r#type: "number",
+                    min: 0,
+                    max: f64::MAX,
+                    step: 1,
+                    value: "{new_bpm}",
+                    class: "bpm-input",
+                    id: "bpm_number",
+                    onwheel: move |ev|{
+                        let mut temp_val = round_dec(*value.get() - (ev.data.delta().strip_units().y.signum()/20.0), 2);
+                        if temp_val > 40.0 {
+                            temp_val = 40.0;
+                        } else if temp_val < 0.05 {
+                            temp_val = 0.05;
+                        }
+                        value.set(temp_val);
+                        cx.props.on_event.call(temp_val);
+                    },
+                    onchange: move |ev|{
+                        let temp_val = ev.data.value.parse::<usize>().unwrap_or(new_bpm);
+                        let new_rate = temp_val as f64 / *bpm as f64;
+                        value.set(new_rate);
+                        cx.props.on_event.call(new_rate);
+                    },
+                }
             }
             div{
-                class: "bpm-input",
-                "{bpm}"
-            }
-            div{
-                class: "bpm-label",
-                "New BPM "
-            }
-            input { 
-                r#type: "number",
-                min: 0,
-                max: f64::MAX,
-                step: 1,
-                value: "{new_bpm}",
-                class: "bpm-input",
-                id: "bpm_number",
-                onwheel: move |ev|{
-                    let mut temp_val = round_dec(*value.get() - (ev.data.delta().strip_units().y.signum()/20.0), 2);
-                    if temp_val > 40.0 {
-                        temp_val = 40.0;
-                    } else if temp_val < 0.05 {
-                        temp_val = 0.05;
-                    }
-                    value.set(temp_val);
-                    cx.props.on_event.call(temp_val);
-                },
-                onchange: move |ev|{
-                    let temp_val = ev.data.value.parse::<usize>().unwrap_or(new_bpm);
-                    let new_rate = temp_val as f64 / *bpm as f64;
-                    value.set(new_rate);
-                    cx.props.on_event.call(new_rate);
-                },
-            }
-            Toggleable{
-                name: "Change pitch",
-                title: "Change pitch: If checked, the pitch of the audio file will scale with the rate. If disabled, the pitch will remain the same, no matter the rate.",
-                toggled: settings.read().change_pitch,
-                on_event: move |ev: bool| settings.write().change_pitch = !ev
-            }
-            Toggleable{
-                name: "Override audio",
-                title: "Override audio: Forces the generation of a new audio file even if one of the same rate already exists. This is useful if you already generated an audio file with a changed pitch and now want to regenerate the same audio file with an unchanged pitch, or vice versa.",
-                toggled: settings.read().force_generation,
-                on_event: move |ev: bool| settings.write().force_generation = !ev
+                class: "toggle-grid",
+                Toggleable{
+                    name: "Change pitch",
+                    title: "Change pitch: If checked, the pitch of the audio file will scale with the rate. If disabled, the pitch will remain the same, no matter the rate.",
+                    toggled: settings.read().change_pitch,
+                    on_event: move |ev: bool| settings.write().change_pitch = !ev
+                }
+                Toggleable{
+                    name: "Override audio",
+                    title: "Override audio: Forces the generation of a new audio file even if one of the same rate already exists. This is useful if you already generated an audio file with a changed pitch and now want to regenerate the same audio file with an unchanged pitch, or vice versa.",
+                    toggled: settings.read().force_generation,
+                    on_event: move |ev: bool| settings.write().force_generation = !ev
+                }
             }
         }
     })
@@ -200,16 +206,19 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
 
 pub fn Toggleable<'a>(cx: Scope<'a, ToggleableProps<'a>>) -> Element{
     cx.render(rsx!{
+
         div{
-            class: "toggleable-container",
+            class: "toggleable-label",
             title: "{cx.props.title}",
             "{cx.props.name}"
-            input{
-                r#type: "checkbox",
-                checked: "{cx.props.toggled}",
-                onclick: move |_| {
-                    cx.props.on_event.call(cx.props.toggled);
-                }
+        }
+        input{
+            r#type: "checkbox",
+            class: "toggleable-box",
+            title: "{cx.props.title}",
+            checked: "{cx.props.toggled}",
+            onclick: move |_| {
+                cx.props.on_event.call(cx.props.toggled);
             }
         }
     })
