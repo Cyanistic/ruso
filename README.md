@@ -23,7 +23,9 @@
 - Change the approach rate, circle size, hp drain, overall difficulty, and playback rate of any osu! beatmap
     - Each field is populated upon loading a new map
         - Fields can be locked to prevent this behavior on a per-field basis
+- AR and OD scaling
 - Support for mp3, ogg, and wav audio formats
+- Customize the playback rate of an audio file while keeping its pitch intact
 - Light, Dark, osu!, and custom color schemes
 - Auto and manual map selection modes
     - Manually choose maps to modify using the file picker
@@ -36,10 +38,8 @@
 
 ## Upcoming Features
 
-- Customize the playback rate of a song while keeping its pitch intact
 - No dependence on gosumemory for auto mode
 - Fancy animations/Improved UI
-- AR and OD scaling
 
 ## Getting Started
 
@@ -117,7 +117,7 @@ Note that mp3 files take approximately 1s to process for every 20s of audio. If 
 
 - [gosumemory] (optional) - Used to get map data from a running osu instance when using auto mode
 
-All other dependencies are listed in the `Cargo.toml` file.
+All other dependencies are listed in the `Cargo.toml` file and baked into the binary, no need to worry about installing them.
 
 ## Theming
 

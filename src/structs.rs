@@ -31,6 +31,8 @@ pub struct MapOptions{
     pub hp_drain: f64,
     pub map_path: PathBuf,
     pub mode: Mode,
+    pub original_ar: f64,
+    pub original_od: f64,
     pub overall_difficulty: f64,
     pub rate: f64,
     pub stars: f64,
@@ -49,6 +51,8 @@ impl MapOptions{
             hp_drain: 5.0,
             map_path: PathBuf::new(), 
             mode: Mode::Osu,
+            original_ar: 5.0,
+            original_od: 5.0,
             overall_difficulty: 5.0,
             rate: 1.0,
             stars: 0.0,
@@ -60,17 +64,27 @@ impl MapOptions{
     pub fn read_map_metadata(&mut self, settings: &Settings) -> Result<()>{
         let map = libosu::beatmap::Beatmap::parse(BufReader::new(File::open(settings.songs_path.join(&self.map_path))?))?;
         let stars = rosu_pp::Beatmap::from_path(settings.songs_path.join(&self.map_path))?.stars().calculate().stars();
+        self.original_ar = map.difficulty.approach_rate;
+        self.original_od = map.difficulty.overall_difficulty;
         if !settings.ar_lock{
-            self.approach_rate = map.difficulty.approach_rate as f64;
+            if settings.scale_ar{
+                self.scale_ar();
+            }else{
+                self.approach_rate = map.difficulty.approach_rate;
+            }
         }
         if !settings.cs_lock{
-            self.circle_size = map.difficulty.circle_size as f64;
+            self.circle_size = map.difficulty.circle_size;
         }
         if !settings.hp_lock{
-            self.hp_drain = map.difficulty.hp_drain_rate as f64;
+            self.hp_drain = map.difficulty.hp_drain_rate;
         }
         if !settings.od_lock{
-            self.overall_difficulty = map.difficulty.overall_difficulty as f64;
+            if settings.scale_od{
+                self.scale_od();
+            }else{
+                self.overall_difficulty = map.difficulty.overall_difficulty;
+            }
         }
         self.bpm = calculate_bpm(&map.timing_points);
         self.background = {
@@ -89,6 +103,40 @@ impl MapOptions{
         self.artist = map.artist.into();
         self.difficulty_name = map.difficulty_name.into();
         Ok(())
+    }
+
+    /// Scales the approach rate with the given rate.
+    pub fn scale_ar(&mut self){
+        match self.mode {
+            Mode::Taiko | Mode::Mania => (),
+            Mode::Osu | Mode::Catch => {
+                let mut ar_ms = if self.original_ar <= 5.0 {
+                     1200.0 + 600.0 * (5.0 - self.original_ar) / 5.0
+                }else{
+                     1200.0 - 750.0 * (self.original_ar - 5.0) / 5.0
+                };
+                ar_ms /= self.rate;
+
+                self.approach_rate = round_dec(if ar_ms >= 1200.0 {
+                    15.0 - ar_ms / 120.0 
+                }else{
+                    (1200.0 / 150.0) - (ar_ms / 150.0) + 5.0
+                }, 2).min(10.0).max(0.0);
+                // Added min and max to keep the ar within a valid range
+            }
+        }
+    }
+
+
+    /// Scales the overall difficulty with the given rate.
+    pub fn scale_od(&mut self){
+        self.overall_difficulty = round_dec(match self.mode{
+            Mode::Osu => (80.0 - (80.0 - 6.0 * self.original_od) / self.rate) / 6.0,
+            Mode::Taiko => (80.0 - (80.0 - 6.0 * self.original_od) / self.rate) / 6.0,
+            Mode::Catch => self.overall_difficulty,
+            Mode::Mania => (64.0 - (64.0 - 3.0 * self.original_od) / self.rate) / 3.0,
+        }, 2).min(10.0).max(0.0);
+        // Added min and max to keep the od within a valid range
     }
 }
 
@@ -110,6 +158,8 @@ pub struct Settings{
     pub gosumemory_startup: bool,
     pub hp_lock: bool,
     pub od_lock: bool,
+    pub scale_ar: bool,
+    pub scale_od: bool,
     pub songs_path: PathBuf,
     pub theme: Theme,
     pub websocket_url: String,
@@ -126,6 +176,8 @@ impl Settings{
             hp_lock: false,
             od_lock: false,
             generate_osz: true,
+            scale_ar: false,
+            scale_od: false,
             songs_path: PathBuf::new(),
             gosumemory_path: PathBuf::new(),
             gosumemory_startup: false,
