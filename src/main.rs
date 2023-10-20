@@ -1,6 +1,7 @@
 #![allow(non_snake_case, clippy::redundant_closure)]
 #![windows_subsystem = "windows"]
-use std::{process::{Child, Command}, sync::{Arc, Mutex}, path::PathBuf};
+#[allow(unused_imports)]
+use std::{process::{Child, Command}, sync::{Arc, Mutex}, path::PathBuf, io::Write};
 use dioxus::prelude::*;
 use dioxus_desktop::{Config, WindowBuilder, tao::window::Icon, WindowCloseBehaviour, LogicalSize};
 use ruso::{structs::*, components::*,utils::*, cli};

@@ -15,7 +15,7 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
     let rate = map.rate;
     let map_file = File::open(path)?;
     let mut map_data = libosu::beatmap::Beatmap::parse(map_file)?;
-    let mut audio_path = path.parent().unwrap().join(&map_data.audio_filename);
+    let audio_path = path.parent().unwrap().join(&map_data.audio_filename);
     let cache_dir = dirs::cache_dir().ok_or(anyhow!("Couldn't find cache directory"))?.join("ruso");
     if !cache_dir.exists(){
         std::fs::create_dir_all(&cache_dir)?;
@@ -33,16 +33,6 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
         },
         Err(e) => return Err(anyhow!("Error opening maps.txt: {}", e))
     };
-
-    // Change beatmap properties to match those given by the user
-    if rate != 1.0{
-        let new_name = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, audio_path.extension().unwrap().to_str().unwrap());
-        audio_path.set_file_name(&new_name);
-        map_data.audio_filename = new_name;
-        map_data.difficulty_name += format!(" {}x ({}bpm)", rate, (map.bpm as f64 * rate) as usize).as_str(); 
-    }else{
-        map_data.difficulty_name += format!(" (AR {} CS {} HP {} OD {})", map.approach_rate, map.circle_size, map.hp_drain, map.overall_difficulty ).as_str();
-    }
     map_data.difficulty.approach_rate = map.approach_rate;
     map_data.difficulty.circle_size = map.circle_size;
     map_data.difficulty.hp_drain_rate = map.hp_drain;
@@ -50,8 +40,19 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
     map_data.preview_time.0 = (*map_data.preview_time as f64 / rate).round() as i32;
     map_data.tags.push("ruso-map".to_string());
 
+    // Change beatmap properties to match those given by the user
+    let mut new_audio_path = audio_path.clone();
+    if rate != 1.0{
+        let new_name = format!("{}({}).{}", &audio_path.file_stem().unwrap().to_str().unwrap(), rate, audio_path.extension().unwrap().to_str().unwrap());
+        new_audio_path.set_file_name(&new_name);
+        map_data.audio_filename = new_name;
+        map_data.difficulty_name += format!(" {}x ({}bpm)", rate, (map.bpm as f64 * rate) as usize).as_str(); 
+    }else{
+        map_data.difficulty_name += format!(" (AR {} CS {} HP {} OD {})", map.approach_rate, map.circle_size, map.hp_drain, map.overall_difficulty ).as_str();
+    }
+
     let mut audio_thread = None;
-    if settings.force_generation || !audio_path.exists(){
+    if settings.force_generation || !new_audio_path.exists(){
         // Generate audio file on a new thread
         audio_thread = Some(tokio::task::spawn({
             let audio_path = audio_path.clone();
@@ -89,7 +90,7 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
 
     // Wait for the audio threat to finish and return an error if something went wrong
     if let Some(audio_thread) = audio_thread{
-        let _ = audio_thread.await.map_err(|e| anyhow::anyhow!("Error generating audio file: {:?}", e))?;
+        audio_thread.await.map_err(|e| anyhow::anyhow!("Error generating audio file: {:?}", e))??;
     } 
     
     // Generate .osz file or .osu depending on user selection
@@ -101,7 +102,7 @@ pub async fn generate_map(map: &MapOptions, settings: &Settings) -> Result<()>{
 
     // Write the new paths to the cache file for easy deletion and space usage calculation
     writeln!(cache_file, "{}", new_path.display())?;
-    writeln!(cache_file, "{}", audio_path.display())?;
+    writeln!(cache_file, "{}", new_audio_path.display())?;
 
     Ok(())
 }

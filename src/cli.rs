@@ -9,9 +9,8 @@ use tokio_tungstenite::connect_async;
 /// Entry point for cli
 pub async fn run() -> Result<()>{
     // Reset the SIGPIPE handler to the default one to allow for proper unix piping
-    if cfg!(unix) {
-        reset_sigpipe();
-    }
+    #[cfg(unix)]
+    reset_sigpipe();
 
     let args = Vec::from_iter(std::env::args());
     let mut args = args.iter().skip(1).map(AsRef::as_ref).collect::<Vec<&str>>();
