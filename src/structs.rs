@@ -105,6 +105,7 @@ impl MapOptions{
         Ok(())
     }
 
+    // Code logic copied from https://github.com/hwsmm/cosutrainer/blob/9bc998977976116c4cd2e559dc85d46cfeb191cd/src/mapeditor.c#L98
     /// Scales the approach rate with the given rate.
     pub fn scale_ar(&mut self){
         match self.mode {
@@ -127,7 +128,7 @@ impl MapOptions{
         }
     }
 
-
+    // Code logic copied from https://github.com/hwsmm/cosutrainer/blob/9bc998977976116c4cd2e559dc85d46cfeb191cd/src/mapeditor.c#L108
     /// Scales the overall difficulty with the given rate.
     pub fn scale_od(&mut self){
         self.overall_difficulty = round_dec(match self.mode{
