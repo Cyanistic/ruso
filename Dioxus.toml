@@ -27,7 +27,7 @@ files = {}
 
 [bundle.windows]
 allow_downgrades = true
-webview_install_mode = { OfflineInstaller = { silent = false } }
+webview_install_mode = { EmbedBootstrapper = { silent = false } }
 tsp = true
 icon_path = "assets/icons/icon.ico"
 

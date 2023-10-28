@@ -3,7 +3,7 @@ use anyhow::{Result, anyhow};
 use id3::{Tag, TagLike};
 use mp3lame_encoder::{FlushNoGap, Id3Tag, InterleavedPcm, max_required_buffer_size, MonoPcm};
 use vorbis_rs::{VorbisDecoder, VorbisEncoderBuilder};
-use soundtouch::SoundTouch;
+use soundtouch::{SoundTouch, Setting};
 
 pub fn change_speed_wav(path: &PathBuf, rate: f64, change_pitch: bool) -> Result<(), hound::Error>{
     let mut reader = hound::WavReader::open(path)?;
@@ -22,6 +22,7 @@ pub fn change_speed_wav(path: &PathBuf, rate: f64, change_pitch: bool) -> Result
         soundtouch
             .set_sample_rate(reader.spec().sample_rate)
             .set_channels(reader.spec().channels as u32)
+            .set_setting(Setting::UseQuickseek, 1)
             .set_tempo(rate);
             out_data = soundtouch.generate_audio(&samples);
     }
@@ -44,6 +45,8 @@ pub fn change_speed_ogg(path: &PathBuf, rate: f64, change_pitch: bool) -> Result
         decoder.channels(),
         &mut transcoded_ogg
     )?.build()?;
+
+    // TODO: add functionality to not modify pitch
 
     while let Some(decoded_block) = decoder.decode_audio_block()? {
         encoder.encode_audio_block(decoded_block.samples())?;
@@ -115,6 +118,7 @@ pub fn change_speed_mp3(path: &PathBuf, rate: f64, change_pitch: bool) -> Result
             soundtouch
                 .set_sample_rate(mp3_headers.sample_rate as u32)
                 .set_channels(mp3_headers.channels as u32)
+                .set_setting(Setting::UseQuickseek, 1)
                 .set_tempo(rate);
                 input = soundtouch.generate_audio(input.into_iter().map(|x| x as f32).collect::<Vec<f32>>().as_slice())
                     .into_iter().map(|x| x as i16).collect::<Vec<i16>>();

@@ -4,43 +4,43 @@
 use std::{process::{Child, Command}, sync::{Arc, Mutex}, path::PathBuf, io::Write};
 use dioxus::prelude::*;
 use dioxus_desktop::{Config, WindowBuilder, tao::window::Icon, WindowCloseBehaviour, LogicalSize};
-use ruso::{structs::*, components::*,utils::*, cli};
+use ruso::{structs::{MapOptions, StatusMessage, Settings, Tab, Theme}, components::{AutoTab, ManualTab, SettingsTab}, utils::{generate_example_theme, gosu_startup}, cli};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
-    let mut gosu_process: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
     let _ = generate_example_theme("custom.css");
-    ctrlc::set_handler({
-        let gosu_process = gosu_process.clone();
-            move ||{
-            // Fix terminal carriage return
-            if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
-                let _ = process.wait();
-            }
-            let mut gosu_process = gosu_process.lock().unwrap();
-            
-            // Kill gosumemory if it was started by ruso
-            if let Some(ref mut process) = gosu_process.as_mut(){
-                #[cfg(not(unix))]
-                process.kill().unwrap_or_else(|_| {writeln!(std::io::stderr(), "Could not kill spawned gosumemory process");});
+    // let mut gosu_process: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
+    // ctrlc::set_handler({
+    //     let gosu_process = gosu_process.clone();
+    //         move ||{
+    //         // Fix terminal carriage return
+    //         if let Ok(mut process) = Command::new("stty").arg("sane").spawn(){
+    //             let _ = process.wait();
+    //         }
+    //         let mut gosu_process = gosu_process.lock().unwrap();
+    //         
+    //         // Kill gosumemory if it was started by ruso
+    //         if let Some(ref mut process) = gosu_process.as_mut(){
+    //             #[cfg(not(unix))]
+    //             process.kill().unwrap_or_else(|_| {writeln!(std::io::stderr(), "Could not kill spawned gosumemory process");});
 
-                #[cfg(unix)]
-                unsafe{
-                    libc::kill(process.id() as i32, libc::SIGTERM);
-                }
-            }
-        }
-    })?;
+    //             #[cfg(unix)]
+    //             unsafe{
+    //                 libc::kill(process.id() as i32, libc::SIGTERM);
+    //             }
+    //         }
+    //     }
+    // })?;
     if std::env::args().len() > 1{
         cli::run().await?;
     }else{
         let settings = Settings::new_from_config();
         tokio::spawn(async move{
-            if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup  {
-                gosu_process = match gosu_startup(&settings){
+            if tokio_tungstenite::connect_async(&settings.websocket_url).await.is_err() && settings.gosumemory_startup{
+                match gosu_startup(&settings){
                     Ok(k) => Arc::new(Mutex::new(Some(k))),
                     Err(e) => return eprintln!("Could not start gosumemory: {}", e)
-                } 
+                };
             }
         });
 

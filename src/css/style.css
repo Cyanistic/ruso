@@ -241,7 +241,7 @@ button.reset-button{
 
 button.reset-button:hover{
   border: 3px solid var(--lightened-primary);
-  transform: scale(1.05);
+  /* transform: scale(1.05); */
 }
 
 div.status-message{

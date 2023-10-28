@@ -190,7 +190,7 @@ pub fn RateSlider<'a>(cx: Scope, on_event: EventHandler<'a, f64>, bpm: usize) ->
                 class: "toggle-grid",
                 Toggleable{
                     name: "Change pitch",
-                    title: "Change pitch: If checked, the pitch of the audio file will scale with the rate. If disabled, the pitch will remain the same, no matter the rate.",
+                    title: "Change pitch: If checked, the pitch of the audio file will scale with the rate. If disabled, the pitch will remain the same, no matter the rate. Currently, disabling this only works for mp3 and wav files (not ogg).",
                     toggled: settings.read().change_pitch,
                     on_event: move |ev: bool| settings.write().change_pitch = !ev
                 }
